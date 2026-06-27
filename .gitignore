@@ -5,6 +5,10 @@
 .DS_Store
 Thumbs.db
 
+# Other local projects are not part of this repository.
+/TrunkSpineBiogeography/
+/Github-Creation/
+
 # Raw camera-trap inputs are intentionally not committed.
 WolfRelativeEncounterFrequency2024/data/*.csv
 WolfRelativeEncounterFrequency2024/data/*.tsv
@@ -16,4 +20,3 @@ WolfRelativeEncounterFrequency2024/outputs/
 WolfRelativeEncounterFrequency2024/**/*.tif
 WolfRelativeEncounterFrequency2024/**/*.tiff
 WolfRelativeEncounterFrequency2024/**/*prediction_grid*.csv
-
