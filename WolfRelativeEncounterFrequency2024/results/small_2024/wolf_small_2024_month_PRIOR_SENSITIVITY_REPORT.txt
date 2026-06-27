@@ -1,0 +1,26 @@
+Prior sensitivity for small/local 2024 month-adjusted NB spatial model
+
+Purpose:
+  Check whether the month-adjusted model is driven by the chosen spatial, month-effect, or NB-size priors.
+  These fits use observed data only; final prediction maps remain from the selected prior set.
+
+Summary:
+  Variants fitted: 12
+  Variants passing required diagnostics: 12 / 12
+  Failed variants: none
+  WAIC range: 269.39 to 277.14
+  Spatial SD posterior mean range: 0.654 to 0.882
+  NB size posterior mean range: 0.571 to 1.718
+
+Best WAIC variants:
+  spatial_sd_wider: WAIC 269.39, diagnostics_ok=TRUE, Moran p 0.780, NB size 1.585, spatial SD 0.882
+  month_sd_2: WAIC 269.73, diagnostics_ok=TRUE, Moran p 0.692, NB size 1.698, spatial SD 0.828
+  nb_size_median_3: WAIC 269.97, diagnostics_ok=TRUE, Moran p 0.738, NB size 1.718, spatial SD 0.828
+  final_current: WAIC 270.01, diagnostics_ok=TRUE, Moran p 0.674, NB size 1.511, spatial SD 0.822
+  month_sd_0_5: WAIC 270.05, diagnostics_ok=TRUE, Moran p 0.682, NB size 1.352, spatial SD 0.815
+
+Interpretation:
+  Stable diagnostics across variants support the prior choices.
+  The final model estimates spatial range with a weakly informative PC prior rather than fixing it.
+  Fixed-range variants are retained as sensitivity checks for whether the range prior drives conclusions.
+  If maps are used for publication, cite the estimated range prior and this sensitivity table together.

@@ -1,0 +1,65 @@
+Survey: Large 2024 survey
+Final model: zinb_spatial_month (family = zeroinflatednbinomial1)
+Run profile: balanced
+Joint posterior PPC simulations: 750
+Prediction posterior samples: 300
+Cameras: 60 | model rows: 344 | positive rows: 164 | events: 479 | effort: 3574.0 camera-days | observed mean 13.402 /100
+
+Validation:
+  PPC method: joint_posterior
+  Pearson dispersion, model rows: 0.583
+  Pearson dispersion, camera aggregates: 0.236
+  Camera-level PPC total events pass: TRUE
+  Camera-level PPC zero fraction pass: TRUE
+  Camera-level PPC max count pass: TRUE
+  Residual Moran's I: -0.034; expected -0.017; two-sided p = 0.336
+  Residual Moran pass: TRUE
+  Row PIT KS p: 0.09049
+  Camera PIT KS p: 0.0003421
+  Zero-inflation probability posterior mean: 0.073
+  Negative-binomial size posterior mean: 3.557
+  Passes required checks: TRUE
+
+Spatial block cross-validation:
+  Row mean LPD: -1.513
+  Row RMSE count: 2.39
+  Row RMSE rate /100: 50.77
+  Row 90% coverage: 0.96
+  Camera RMSE count: 9.47
+  Camera RMSE rate /100: 16.02
+  Camera 90% coverage: 0.93
+
+Temporal residual autocorrelation diagnostics:
+  Month is included as a fixed effect; these diagnostics check residual temporal structure after that adjustment.
+  Within-camera lag-1 residual correlation: r = -0.180, p = 0.002392, n pairs = 284, median gap = 12.7 days
+  Date-ordered mean residual ACF, lag 1: 0.242
+  Regular 7-day lag-1 residual correlation: r = -0.153, p = 0.1182, n pairs = 106
+  Regular 14-day lag-1 residual correlation: r = -0.136, p = 0.09436, n pairs = 153
+  Note: within-camera deployment-order lags are not equal-time lags; regular weekly/biweekly checks are the formal follow-up.
+
+Temporal bin model sensitivity:
+  Sensitivity models replace month dummies with equal-time deployment-start bins.
+  Lowest WAIC in temporal check: zinb_spatial_month (WAIC 933.66; delta vs month 0.00).
+  Current month model regular 14-day lag-1: r = -0.136, p = 0.09436.
+
+Priors:
+  Field range: PC prior, P(range < 5000 m) = 0.50
+  Field marginal SD: PC prior, P(SD > 2.50) = 0.05
+  Intercept: Gaussian(mean = -2.010, prec = 0.160), SD 2.5 on log scale
+  Month log-rate ratios: Gaussian(0, prec = 1), SD 1.0
+  Zero-inflation logit(p): Gaussian(-2.94, prec = 0.44)
+  Negative-binomial log(size): Gaussian(mean = 0.69, prec = 0.250), SD 2.0
+
+Temporal structure:
+  Calendar camera-month is included as a fixed effect after splitting effort by month and assigning events by eventStart month.
+  Reference month for coefficients: 2024-09
+  Month used for prediction maps: 2024-09
+
+Prediction:
+  Map units: expected wolf events per 100 camera-days.
+  Exceedance threshold: 20.103 events / 100 camera-days (1.5x observed mean).
+
+Interpretation:
+  Relative wolf encounter frequency only.
+  Not abundance, density, occupancy, or population size.
+  Spatial surface is conditional on the selected prediction month.

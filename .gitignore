@@ -1,0 +1,19 @@
+# Local/editor files
+.Rhistory
+.RData
+.Rproj.user/
+.DS_Store
+Thumbs.db
+
+# Raw camera-trap inputs are intentionally not committed.
+WolfRelativeEncounterFrequency2024/data/*.csv
+WolfRelativeEncounterFrequency2024/data/*.tsv
+WolfRelativeEncounterFrequency2024/data/*.xlsx
+
+# Regenerated full output archives can be large. Compact selected final outputs
+# live under WolfRelativeEncounterFrequency2024/results/ and are tracked.
+WolfRelativeEncounterFrequency2024/outputs/
+WolfRelativeEncounterFrequency2024/**/*.tif
+WolfRelativeEncounterFrequency2024/**/*.tiff
+WolfRelativeEncounterFrequency2024/**/*prediction_grid*.csv
+

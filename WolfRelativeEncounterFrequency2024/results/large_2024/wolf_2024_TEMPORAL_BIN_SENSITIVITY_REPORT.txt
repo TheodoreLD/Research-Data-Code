@@ -1,0 +1,55 @@
+Temporal bin sensitivity:
+  Purpose: test whether the residual temporal pattern is reduced by replacing coarse calendar-month effects with equal-time fixed effects.
+  These are sensitivity models, not automatic replacements for the final map.
+
+  Current month model: deployment-order lag-1 r -0.180 (p 0.002392); regular 14-day lag-1 r -0.136 (p 0.09436).
+  Lowest WAIC model in this temporal check: zinb_spatial_month (WAIC 933.66).
+
+                         model                 family spatial
+            zinb_spatial_month zeroinflatednbinomial1    TRUE
+ zinb_spatial_biweekly_timebin zeroinflatednbinomial1    TRUE
+   zinb_spatial_weekly_timebin zeroinflatednbinomial1    TRUE
+                                                                                note
+                           current final model: calendar camera-month fixed effects
+ sensitivity model: deployment-start 14-day time-bin fixed effects, no month dummies
+  sensitivity model: deployment-start 7-day time-bin fixed effects, no month dummies
+      dic    p_dic     waic   p_waic marginal_loglik cpo_failure_rate
+ 933.8003 45.69932 933.6579 38.90427       -496.2997                0
+ 937.0266 47.44427 936.2352 39.78517       -499.0307                0
+ 942.7035 50.51658 940.8411 41.38873       -502.7766                0
+ zi_prob_mean nb_size_mean spatial_range_mean_m spatial_sd_mean mesh_vertices
+   0.06231965     3.261900             4143.072       0.9363564            NA
+   0.05960149     3.136740             4136.544       0.9405090          7200
+   0.05061078     2.795167             4196.460       0.9414045          7200
+     temporal_structure bin_days n_time_bins n_fixed_temporal_terms
+    month_fixed_effects       NA           3                      2
+ time_bin_fixed_effects       14           5                      4
+ time_bin_fixed_effects        7          10                      9
+ reference_temporal_level diagnostics_ok ppc_total_pass ppc_zero_pass
+                  2024-09           TRUE           TRUE          TRUE
+               2024-08-29           TRUE           TRUE          TRUE
+               2024-08-29           TRUE           TRUE          TRUE
+ ppc_max_pass row_pit_ks_p camera_pit_ks_p pearson_dispersion_row
+         TRUE   0.09048802    0.0003421470              0.5832790
+         TRUE   0.07840017    0.0002834992              0.5679076
+         TRUE   0.06386093    0.0005921908              0.5336524
+ pearson_dispersion_camera     moran_I moran_p deployment_order_lag1_r
+                 0.2356560 -0.03369070   0.336              -0.1795207
+                 0.2239262 -0.03460024   0.338              -0.1739692
+                 0.2312557 -0.03320308   0.414              -0.1664758
+ deployment_order_lag1_p deployment_order_lag1_n
+             0.002391815                     284
+             0.003268255                     284
+             0.004911515                     284
+ deployment_order_lag1_median_days regular_7day_lag1_r regular_7day_lag1_p
+                          12.68229          -0.1526661           0.1182101
+                          12.68229          -0.1479077           0.1302588
+                          12.68229          -0.1249896           0.2017429
+ regular_7day_lag1_n regular_14day_lag1_r regular_14day_lag1_p
+                 106           -0.1357255           0.09436399
+                 106           -0.1315011           0.10517124
+                 106           -0.1325904           0.10229570
+ regular_14day_lag1_n delta_waic delta_waic_vs_month
+                  153   0.000000            0.000000
+                  153   2.577269            2.577269
+                  153   7.183247            7.183247
