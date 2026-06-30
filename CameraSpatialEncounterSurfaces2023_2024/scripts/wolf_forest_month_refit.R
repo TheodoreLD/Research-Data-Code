@@ -953,8 +953,8 @@ settings <- list(
   prior_range_m = c(1000, 0.5),
   prior_sigma = c(1.5, 0.05),
   use_month_effect = TRUE,
-  month_reference = "2024-06",
-  month_prediction = "2024-06",
+  month_reference = "2024-08",
+  month_prediction = "2024-08",
   include_grid_in_mesh = FALSE
 )
 
@@ -964,7 +964,7 @@ cfg <- list(
   settings = settings,
   caveat = paste(
     "Camera-month rows are reconstructed from the dated flat forest-camera",
-    "2024 file. Month fixed effects adjust for seasonal sampling differences;",
+    "2024 file. Month fixed effects are retained as a temporal control;",
     "the spatial range is estimated with a weakly informative PC prior;",
     "the temporal residual ACF is only a supporting check because there are",
     "seven monthly points."

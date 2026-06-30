@@ -1,0 +1,46 @@
+Survey: Forest-camera 2024 survey with month fixed effects
+Final model: nb_spatial_month (family = nbinomial)
+Run profile: balanced
+PPC simulations: 250
+Spatial CV: run
+Cameras: 53 | model rows: 356 | positive rows: 36 | events: 46 | effort: 4423.0 camera-days
+
+Validation:
+  PPC method: joint_posterior
+  Pearson dispersion, model rows: 0.576
+  Pearson dispersion, camera aggregates: 0.603
+  PPC total events pass: TRUE
+  PPC zero fraction pass: TRUE
+  PPC max count pass: TRUE
+  Residual Moran's I: -0.042 (p = 0.658)
+  Residual Moran pass: TRUE
+  PPC PIT KS p: 0.3658
+  Passes required checks: TRUE
+
+Spatial block cross-validation:
+  mean LPD: -0.412
+  RMSE count: 0.45
+  RMSE rate /100: 4.04
+  90% coverage: 0.98
+
+Priors:
+  Field range: PC prior, P(range < 1000 m) = 0.50
+  Field marginal SD: PC prior, P(SD > 1.50) = 0.05
+  Intercept: Gaussian(mean = -4.566, prec = 0.160), SD 2.5 on log daily rate
+  Month log-rate ratios: Gaussian(0, prec = 1), SD 1.0
+  Negative-binomial log(size): Gaussian(mean = 0.69, prec = 0.250), SD 2.0
+
+Estimated likelihood hyperparameters:
+  Negative-binomial size mean: 1.904
+
+Temporal structure:
+  Month is included as a fixed effect.
+  Reference month for coefficients: 2024-08
+  Prediction-stack baseline month: 2024-08
+  Final maps are effort-weighted annualized over the sampled 2024 months.
+
+Interpretation:
+  Relative wolf encounter frequency in events per 100 camera-days.
+  Not abundance, density, occupancy, or population size.
+
+Temporal note: Camera-month rows are reconstructed from the dated flat forest-camera 2024 file. Month fixed effects are retained as a temporal control; the spatial range is estimated with a weakly informative PC prior; the temporal residual ACF is only a supporting check because there are seven monthly points.

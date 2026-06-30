@@ -1,0 +1,43 @@
+Forest-camera 2024 month-refit summary
+
+Model: nb_spatial_month (family = nbinomial)
+Reference month: 2024-08
+Prediction-stack baseline month: 2024-08
+Map target: effort-weighted annualized 2024 encounter-frequency surface
+Rows: 356 camera-month rows at 53 cameras
+Events: 46 | effort: 4423.0 camera-days | observed mean 1.040 /100
+
+Validation:
+  PPC method: joint_posterior
+  Pearson dispersion, model rows: 0.576
+  Pearson dispersion, camera aggregates: 0.603
+  PPC total events pass: TRUE
+  PPC zero fraction pass: TRUE
+  PPC max count pass: TRUE
+  Residual Moran's I: -0.042; p = 0.658
+  Required diagnostics pass: TRUE
+  NB size posterior mean: 1.904
+
+Temporal residual check:
+  Month-level Pearson residual lag-1 ACF: 0.146
+  Interpret cautiously because only seven monthly points are available.
+
+Interpretation:
+  Month fixed effects adjust for camera-month exposure; effort is split across months and wolf events are assigned by eventStart month.
+  Prediction maps represent the effort-weighted annualized 2024 relative encounter-frequency surface, not one calendar month.
+  The June 2024 setting is only the baseline used to build the prediction stack and express month-rate ratios.
+  Outputs remain relative encounter frequency, not abundance, density, occupancy, or population size.
+
+Spatial block cross-validation:
+  mean LPD: -0.412
+  RMSE count: 0.45
+  RMSE rate /100: 4.04
+  90% coverage: 0.98
+
+Month coefficients:
+  2024-03 vs 2024-08: mean RR 0.34 (95% interval 0.08 to 1.47)
+  2024-04 vs 2024-08: mean RR 0.65 (95% interval 0.22 to 1.92)
+  2024-05 vs 2024-08: mean RR 0.90 (95% interval 0.36 to 2.28)
+  2024-06 vs 2024-08: mean RR 1.68 (95% interval 0.74 to 3.76)
+  2024-07 vs 2024-08: mean RR 1.29 (95% interval 0.54 to 3.07)
+  2024-09 vs 2024-08: mean RR 0.67 (95% interval 0.23 to 1.98)

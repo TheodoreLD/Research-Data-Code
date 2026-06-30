@@ -23,8 +23,8 @@
 #   models are documented in README.md and docs/final-model-details.md.
 #
 # Main outputs
-#   * GeoTIFF prediction rasters: mean, SD, CV, and exceedance probability
-#   * PNG maps for mean encounter frequency, uncertainty, and exceedance
+#   * GeoTIFF prediction rasters: posterior mean and posterior SD
+#   * PNG maps for mean encounter frequency and posterior-SD uncertainty
 #   * posterior predictive checks for total events, zero fraction, and max count
 #   * residual diagnostics: Pearson dispersion, Moran's I, PIT, semivariogram
 #   * spatial block cross-validation summaries
@@ -144,7 +144,7 @@ MORAN_ALPHA <- 0.05
 #   "hull"  : buffered convex hull around cameras
 #   "disks" : buffered disks around cameras, trimmed by max_dist_m
 PRED_DOMAIN <- "hull"
-MAP_EXCEEDANCE <- TRUE
+MAP_EXCEEDANCE <- FALSE
 EXCEED_MULT <- 1.5
 
 # Priors. Field priors are survey-specific in each settings list below.
@@ -200,8 +200,8 @@ surveys <- list(
     final_model = .model_spec("pois_field_month", "poisson"),
     caveat = paste(
       "Deployment timing is strongly correlated with latitude (Spearman rho +0.53,",
-      "p < 0.001). This legacy helper model adjusts for month and maps",
-      "the spatial surface at the reference month 2024-09."
+      "p < 0.001). This legacy helper model includes month as a temporal",
+      "control and reports an annualized survey-period surface."
     ),
     settings = list(
       cell_size_m = 150,
@@ -214,8 +214,8 @@ surveys <- list(
       prior_range_m = c(5000, 0.5),
       prior_sigma = c(0.85, 0.05),
       use_month_effect = TRUE,
-      month_reference = "2024-09",
-      month_prediction = "2024-09",
+      month_reference = "2024-08",
+      month_prediction = "2024-08",
       include_grid_in_mesh = FALSE
     )
   ),
@@ -229,9 +229,8 @@ surveys <- list(
     final_model = .model_spec("zinb_field_month", "zeroinflatednbinomial1"),
     caveat = paste(
       "Deployment timing correlates with latitude (Spearman rho +0.35, p 0.007)",
-      "and encounter rates rise through the season. This final zero-inflated",
-      "negative-binomial helper model adjusts for month and maps the",
-      "spatial surface at the reference month 2023-08."
+      "and encounter rates vary through the survey. This helper model includes",
+      "month as a temporal control and reports an annualized survey-period surface."
     ),
     settings = list(
       cell_size_m = 150,
@@ -1871,12 +1870,10 @@ fit_final_model <- function(camera_rate, settings, spec, survey_prefix,
 
     r_mean <- make_raster("mean")
     r_sd <- make_raster("sd")
-    r_cv <- make_raster("cv")
     names(r_mean) <- "wolf_events_per_100_camera_days"
     names(r_sd) <- "posterior_sd"
-    names(r_cv) <- "posterior_cv"
 
-    rasters <- list(mean = r_mean, sd = r_sd, cv = r_cv, exceed = NULL)
+    rasters <- list(mean = r_mean, sd = r_sd, exceed = NULL)
 
     terra::writeRaster(
       r_mean,
@@ -1888,12 +1885,6 @@ fit_final_model <- function(camera_rate, settings, spec, survey_prefix,
       path_out(paste0(prefix, "_final_predicted_events_per_100_days_sd.tif")),
       overwrite = TRUE
     )
-    terra::writeRaster(
-      r_cv,
-      path_out(paste0(prefix, "_final_predicted_events_per_100_days_cv.tif")),
-      overwrite = TRUE
-    )
-
     if (MAP_EXCEEDANCE) {
       r_exceed <- make_raster("exceed")
       names(r_exceed) <- "exceedance_probability"
@@ -1996,9 +1987,11 @@ plot_map_outputs <- function(prefix, spec, camera_sf, model_dat,
     dpi = 350
   )
 
-  cv_df <- raster_to_df(rasters$cv, "cv")
-  cv_plot <- ggplot() +
-    geom_raster(data = cv_df, aes(x, y, fill = cv), interpolate = TRUE) +
+  sd_df <- raster_to_df(rasters$sd, "sd")
+  sd_cap <- quantile(sd_df$sd, 0.98, na.rm = TRUE)
+  sd_plot <- ggplot() +
+    geom_raster(data = sd_df, aes(x, y, fill = pmin(sd, sd_cap)),
+                interpolate = TRUE) +
     geom_sf(data = camera_sf,
             shape = 21,
             size = 1.4,
@@ -2008,13 +2001,13 @@ plot_map_outputs <- function(prefix, spec, camera_sf, model_dat,
     scale_fill_viridis_c(
       option = "viridis",
       na.value = NA,
-      name = "prediction CV",
+      name = "posterior SD\n(events /100 camera-days)",
       labels = label_number(accuracy = 0.01)
     ) +
     coord_sf(datum = NA) +
     labs(
       title = paste0("Uncertainty surface: ", prefix),
-      subtitle = "posterior coefficient of variation of annualized expected encounter frequency",
+      subtitle = "posterior standard deviation of annualized expected encounter frequency",
       x = "Easting, UTM 34N",
       y = "Northing, UTM 34N"
     ) +
@@ -2022,8 +2015,8 @@ plot_map_outputs <- function(prefix, spec, camera_sf, model_dat,
     theme(panel.grid = element_blank(), legend.position = "right")
 
   ggsave(
-    path_out(paste0(prefix, "_final_event_frequency_cv.png")),
-    cv_plot,
+    path_out(paste0(prefix, "_final_event_frequency_sd.png")),
+    sd_plot,
     width = 9.5,
     height = 9,
     dpi = 350
@@ -2568,9 +2561,8 @@ cat("\nAll requested surveys completed successfully.\n")
 cat("Final outputs are in:\n  ", OUTPUT_DIR, "\n", sep = "")
 cat("Key files per survey:\n")
 cat("  wolf_*_VALIDATION_REPORT.txt              (model, diagnostic status, priors, CV)\n")
-cat("  wolf_*_final_predicted_events_per_100_days_mean.tif / _sd.tif / _cv.tif\n")
-cat("  wolf_*_final_event_frequency_mean.png / _cv.png\n")
-cat("  wolf_*_final_exceedance_prob.tif / .png    (if MAP_EXCEEDANCE)\n")
+cat("  wolf_*_final_predicted_events_per_100_days_mean.tif / _sd.tif\n")
+cat("  wolf_*_final_event_frequency_mean.png / _sd.png\n")
 cat("  wolf_*_*_posterior_predictive_check.csv, _diag_*.png\n")
 cat("  wolf_*_prior_posterior_*.png / .csv        (prior-posterior overlays)\n")
 cat("  wolf_*_hyperparameters.csv                 (likelihood and spatial hyperparameters)\n")

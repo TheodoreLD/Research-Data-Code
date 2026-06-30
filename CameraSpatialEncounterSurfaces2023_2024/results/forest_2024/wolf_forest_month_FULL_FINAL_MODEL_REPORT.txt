@@ -1,0 +1,88 @@
+FULL FINAL MODEL REPORT
+Forest-camera 2024 wolf relative encounter-frequency model
+
+1. Final model
+  Model: nb_spatial_month
+  Likelihood: nbinomial
+  Spatial structure: INLA-SPDE spatial random field.
+  Temporal structure: calendar camera-month fixed effects.
+  Reference month: 2024-08
+  Prediction-stack baseline month: 2024-08
+  Map target: effort-weighted annualized 2024 encounter-frequency surface.
+  Prediction units: expected independent wolf events per 100 camera-days.
+
+2. Data represented in the model
+  Cameras: 53
+  Camera-month rows: 356
+  Independent wolf events: 46
+  Camera effort: 4423.0 camera-days
+  Observed mean encounter frequency: 1.040 events per 100 camera-days
+  Months: 2024-03, 2024-04, 2024-05, 2024-06, 2024-07, 2024-08, 2024-09
+
+3. Final priors
+  Intercept: Gaussian centered on crude daily event rate, SD 2.5 on log scale.
+  Month log-rate ratios: Gaussian(0, SD 1.0).
+  Negative-binomial log(size): Gaussian(log(2), SD 2.0).
+  Spatial range: PC prior, P(range < 1000 m) = 0.5.
+  Spatial marginal SD: PC prior, P(SD > 1.5) = 0.05.
+  These priors are weakly informative/regularising; the spatial range is estimated, not fixed.
+
+4. Fitted hyperparameters
+  Negative-binomial size posterior mean: 1.904
+  Spatial range posterior mean: 618.0 m
+  Spatial SD posterior mean: 0.819
+
+5. Month effects
+  2024-03 vs 2024-08: rate ratio 0.34 (95% CrI 0.08 to 1.47)
+  2024-04 vs 2024-08: rate ratio 0.65 (95% CrI 0.22 to 1.92)
+  2024-05 vs 2024-08: rate ratio 0.90 (95% CrI 0.36 to 2.28)
+  2024-06 vs 2024-08: rate ratio 1.68 (95% CrI 0.74 to 3.76)
+  2024-07 vs 2024-08: rate ratio 1.29 (95% CrI 0.54 to 3.07)
+  2024-09 vs 2024-08: rate ratio 0.67 (95% CrI 0.23 to 1.98)
+
+6. Posterior predictive checks
+  Method: joint_posterior; simulations: 250
+  total_events: observed 46.0000000; simulated 95% interval 33.0000000 to 84.0000000; pass=TRUE
+  zero_fraction: observed  0.5471698; simulated 95% interval  0.3627358 to  0.6415094; pass=TRUE
+  max_camera_count: observed  5.0000000; simulated 95% interval  3.0000000 to 17.0000000; pass=TRUE
+
+7. Residual diagnostics
+  Pearson dispersion, model rows: 0.576
+  Pearson dispersion, camera aggregates: 0.603
+  Residual Moran's I: -0.042; p = 0.658
+  Residual Moran pass: TRUE
+  PIT KS p-value: 0.3658
+  Required diagnostics pass: TRUE
+
+8. Temporal residual check
+  Months checked: 2024-03, 2024-04, 2024-05, 2024-06, 2024-07, 2024-08, 2024-09
+  Month-level Pearson residual lag-1 ACF: 0.146
+  This is a supporting low-power check because only seven monthly points are available.
+
+9. Spatial block cross-validation
+  Mean log predictive density: -0.412
+  RMSE count: 0.446
+  RMSE rate per 100 camera-days: 4.044
+  90% coverage: 0.978
+
+10. Prior sensitivity
+  Sensitivity variants fitted: 12
+  Variants passing required diagnostics: 12 / 12
+  Failed prior variants: none
+  Final-current WAIC: 269.45
+  Best WAIC variant: month_sd_0_5, WAIC 268.71
+  WAIC range across variants: 268.71 to 276.35
+  NB size posterior mean range: 0.616 to 2.294
+  Spatial SD posterior mean range: 0.651 to 0.877
+
+11. Final assessment
+  The final estimated-range month-adjusted NB spatial model passes the required diagnostics.
+  Prior sensitivity supports the prior choices: all tested variants pass required diagnostics.
+  The estimated spatial range prior removes the earlier fixed-range modelling assumption while retaining regularisation.
+  The output should be interpreted as relative encounter frequency, not abundance, density, occupancy, or population size.
+
+12. Main limitations
+  The data contain only 46 independent wolf events, so month and spatial effects have wide uncertainty.
+  Detection probability, camera placement, habitat, roads, prey, and human disturbance are not modelled explicitly.
+  The temporal ACF check has low power because only seven monthly time points are available.
+  Predictions should not be interpreted far outside the sampled camera domain.

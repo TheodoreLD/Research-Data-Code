@@ -131,7 +131,7 @@ MORAN_NPERM <- switch(RUN_PROFILE, quick = 199L, balanced = 499L, final = 999L)
 # Prediction domain.
 # Full map: buffered convex hull around all cameras. Disk-based maps are not produced.
 PRED_DOMAIN <- "hull"
-MAP_EXCEEDANCE <- TRUE
+MAP_EXCEEDANCE <- FALSE
 EXCEED_MULT <- 1.5
 
 # Final 2024 model settings.
@@ -140,8 +140,8 @@ SURVEY_PREFIX <- "wolf_2024"
 FINAL_FAMILY <- "zeroinflatednbinomial1"
 FINAL_MODEL_NAME <- "zinb_spatial_month"
 # Configured final model for 2024 after model comparison: ZINB spatial-month.
-MONTH_REFERENCE <- "2024-09"
-MONTH_PREDICTION <- "2024-09"
+MONTH_REFERENCE <- "2024-08"
+MONTH_PREDICTION <- "2024-08"
 
 settings <- list(
   cell_size_m = 150,
@@ -2811,10 +2811,8 @@ make_prediction_outputs <- function(fit_obj, diag, settings, family) {
 
   r_mean <- make_raster("mean")
   r_sd <- make_raster("sd")
-  r_cv <- make_raster("cv")
   names(r_mean) <- "wolf_events_per_100_camera_days"
   names(r_sd) <- "posterior_sd"
-  names(r_cv) <- "posterior_cv"
 
   terra::writeRaster(r_mean,
                      path_out(paste0(SURVEY_PREFIX,
@@ -2824,12 +2822,8 @@ make_prediction_outputs <- function(fit_obj, diag, settings, family) {
                      path_out(paste0(SURVEY_PREFIX,
                                      "_final_predicted_events_per_100_days_sd.tif")),
                      overwrite = TRUE)
-  terra::writeRaster(r_cv,
-                     path_out(paste0(SURVEY_PREFIX,
-                                     "_final_predicted_events_per_100_days_cv.tif")),
-                     overwrite = TRUE)
 
-  rasters <- list(mean = r_mean, sd = r_sd, cv = r_cv, exceed = NULL)
+  rasters <- list(mean = r_mean, sd = r_sd, exceed = NULL)
 
   if (MAP_EXCEEDANCE) {
     r_exceed <- make_raster("exceed")
@@ -2902,24 +2896,26 @@ plot_map_outputs <- function(camera_sf, model_dat, rasters, overall_rate,
   ggsave(path_out(paste0(SURVEY_PREFIX, "_final_event_frequency_mean.png")),
          mean_plot, width = 9.5, height = 9, dpi = 350)
 
-  cv_df <- raster_to_df(rasters$cv, "cv")
-  cv_plot <- ggplot() +
-    geom_raster(data = cv_df, aes(x, y, fill = cv), interpolate = TRUE) +
+  sd_df <- raster_to_df(rasters$sd, "sd")
+  sd_cap <- quantile(sd_df$sd, 0.98, na.rm = TRUE)
+  sd_plot <- ggplot() +
+    geom_raster(data = sd_df, aes(x, y, fill = pmin(sd, sd_cap)),
+                interpolate = TRUE) +
     geom_sf(data = camera_sf,
             shape = 21, size = 1.4, fill = "white",
             colour = "grey35", stroke = 0.25) +
     scale_fill_viridis_c(option = "viridis", na.value = NA,
-                         name = "prediction CV",
+                         name = "posterior SD\n(events /100 camera-days)",
                          labels = label_number(accuracy = 0.01)) +
     coord_sf(datum = NA) +
     labs(title = paste0("Uncertainty surface: ", plot_label),
-         subtitle = "posterior CV of annualized expected encounter frequency",
+         subtitle = "posterior standard deviation of annualized expected encounter frequency",
          x = "Easting, UTM 34N", y = "Northing, UTM 34N") +
     theme_minimal(base_size = 13) +
     theme(panel.grid = element_blank(), legend.position = "right")
 
-  ggsave(path_out(paste0(SURVEY_PREFIX, "_final_event_frequency_cv.png")),
-         cv_plot, width = 9.5, height = 9, dpi = 350)
+  ggsave(path_out(paste0(SURVEY_PREFIX, "_final_event_frequency_sd.png")),
+         sd_plot, width = 9.5, height = 9, dpi = 350)
 
   if (!is.null(rasters$exceed)) {
     exceed_df <- raster_to_df(rasters$exceed, "p")
@@ -3420,7 +3416,7 @@ RUN_MODEL_COMPARISON <- tolower(Sys.getenv("WOLF_RUN_MODEL_COMPARISON", unset = 
   c("true", "1", "yes", "y")
 RUN_MESH_SENSITIVITY <- tolower(Sys.getenv("WOLF_RUN_MESH_SENSITIVITY", unset = ifelse(RUN_PROFILE == "quick", "false", "true"))) %in%
   c("true", "1", "yes", "y")
-RUN_TEMPORAL_BIN_SENSITIVITY <- tolower(Sys.getenv("WOLF_RUN_TEMPORAL_BIN_SENSITIVITY", unset = "true")) %in%
+RUN_TEMPORAL_BIN_SENSITIVITY <- tolower(Sys.getenv("WOLF_RUN_TEMPORAL_BIN_SENSITIVITY", unset = "false")) %in%
   c("true", "1", "yes", "y")
 TEMPORAL_BIN_SENSITIVITY_NSIM <- as.integer(Sys.getenv(
   "WOLF_TEMPORAL_BIN_SENSITIVITY_NSIM",
@@ -4503,14 +4499,7 @@ diag <- compute_diagnostics(
 
 write_diagnostic_plots(diag, diag_fit_obj$camera_sf)
 temporal_diag <- temporal_autocorrelation_diagnostics(diag$model_dat)
-temporal_bin_sensitivity <- run_temporal_bin_model_sensitivity(
-  model_dat = model_dat,
-  settings = settings,
-  family = family,
-  baseline_fit = diag_fit_obj$fit,
-  baseline_diag = diag,
-  baseline_temporal_diag = temporal_diag
-)
+temporal_bin_sensitivity <- NULL
 write_prior_posterior_plots(diag_fit_obj$fit, settings, family)
 write_month_coefficients(diag_fit_obj$fit, diag$model_dat, settings)
 write_model_hyperparameters(diag_fit_obj$fit)
@@ -4523,8 +4512,7 @@ if (RUN_SPATIAL_CV) {
   cv <- spatial_block_cv(model_dat, settings, family, K = CV_K)
 }
 mesh_sensitivity <- run_mesh_sensitivity(model_dat, settings, family)
-# 10. Interpretation and limitations.
-write_scientific_limitations_report(model_dat)
+# 10. Final summaries.
 write_science_checks_summary_ordered(model_comparison, prior_influence, prior_sensitivity, mesh_sensitivity)
 write_validation_report(model_dat, diag, cv, prediction, temporal_diag, temporal_bin_sensitivity)
 write_manifest(model_dat, diag, cv)
@@ -4576,10 +4564,6 @@ if (!is.null(mesh_sensitivity) && nrow(mesh_sensitivity)) {
   cat(sprintf("[wolf_2024]   mesh sensitivity written: %s\n",
               path_out(paste0(SURVEY_PREFIX, "_mesh_sensitivity.csv"))))
 }
-if (!is.null(temporal_bin_sensitivity) && nrow(temporal_bin_sensitivity)) {
-  cat(sprintf("[wolf_2024]   temporal bin sensitivity written: %s\n",
-              path_out(paste0(SURVEY_PREFIX, "_temporal_bin_sensitivity.csv"))))
-}
 cat("\nAll 2024 workflow steps completed in the ordered analysis sequence.\n")
 cat("Final outputs are in:\n  ", OUTPUT_DIR, "\n", sep = "")
 cat("Key files:\n")
@@ -4588,13 +4572,11 @@ cat("  wolf_2024_EXPLORATORY_REPORT.txt\n")
 cat("  wolf_2024_MODEL_CHOICE_REPORT.txt\n")
 cat("  wolf_2024_VALIDATION_REPORT.txt\n")
 cat("  wolf_2024_SCIENCE_CHECKS_SUMMARY.txt\n")
-cat("  wolf_2024_SCIENTIFIC_LIMITATIONS.txt\n")
 cat("  wolf_2024_model_comparison.csv / wolf_2024_MODEL_COMPARISON_REPORT.txt\n")
 cat("  wolf_2024_prior_sensitivity.csv / wolf_2024_PRIOR_SENSITIVITY_REPORT.txt\n")
 cat("  wolf_2024_mesh_sensitivity.csv / wolf_2024_MESH_SENSITIVITY_REPORT.txt\n")
-cat("  wolf_2024_final_predicted_events_per_100_days_mean.tif / _sd.tif / _cv.tif\n")
-cat("  wolf_2024_final_event_frequency_mean.png / _cv.png\n")
-cat("  wolf_2024_final_exceedance_prob.tif / .png\n")
+cat("  wolf_2024_final_predicted_events_per_100_days_mean.tif / _sd.tif\n")
+cat("  wolf_2024_final_event_frequency_mean.png / _sd.png\n")
 cat("  wolf_2024_zinb_spatial_month_posterior_predictive_check.csv\n")
 cat("  wolf_2024_zinb_spatial_month_model_row_diagnostics.csv\n")
 cat("  wolf_2024_zinb_spatial_month_camera_residual_diagnostics.csv\n")
@@ -4605,7 +4587,6 @@ cat("  wolf_2024_month_coefficients.csv\n")
 cat("  wolf_2024_month_observed_summary.csv\n")
 cat("  wolf_2024_zinb_spatial_month_TEMPORAL_AUTOCORRELATION_REPORT.txt\n")
 cat("  wolf_2024_zinb_spatial_month_temporal_within_camera_lag_correlation.csv\n")
-cat("  wolf_2024_temporal_bin_sensitivity.csv / wolf_2024_TEMPORAL_BIN_SENSITIVITY_REPORT.txt\n")
 cat("  wolf_2024_final_spatial_block_cv_summary.csv, if CV was run\n")
 cat("  wolf_2024_run_manifest.csv\n")
 

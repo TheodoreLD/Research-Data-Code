@@ -1,0 +1,5 @@
+metric,value
+mean_log_predictive_density,-0.4124405755957825
+rmse_count,0.4463112565907998
+rmse_rate_per100,4.044368363157555
+coverage_90,0.9775280898876404

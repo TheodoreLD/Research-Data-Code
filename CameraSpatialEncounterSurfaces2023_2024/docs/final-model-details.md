@@ -32,7 +32,8 @@ All final models use camera-month rows:
 2. The effort assigned to a row is the number of active camera-days inside that
    camera-month interval.
 3. Wolf events are assigned by `eventStart` month.
-4. The model includes month fixed effects and a spatial SPDE field.
+4. The model includes calendar-month fixed effects as a temporal control and a
+   spatial SPDE field.
 
 This avoids mixing September and October effort/events in deployments that
 cross month boundaries.
@@ -46,9 +47,14 @@ lambda_year(s) = sum_m w_m * 100 * exp(beta_0 + gamma[m] + u(s))
 ```
 
 where `w_m` is the proportion of sampled camera-days in month `m`. This keeps
-month in the model as a temporal adjustment while reporting the spatial pattern
-for the sampled survey-year period as a whole. The reference month remains only the
-coding baseline for month-rate ratios.
+month in the model as a temporal control while reporting the spatial pattern
+for the sampled survey-year period as a whole. The reference month remains only
+the coding baseline for month-rate ratios.
+
+Month is treated as a fixed effect. INLA can fit a random month effect, for
+example with `f(month, model = "iid")`, but that was not used because each
+dataset contains only a few sampled months and the aim was direct temporal
+control rather than estimating a month-level variance.
 
 ## Road-Camera 2023 Model
 
@@ -99,8 +105,6 @@ Model comparison:
 | ZINB spatial-month | 1162.72 | 0.00 |
 | NB spatial-month | 1162.97 | 0.25 |
 | Poisson spatial-month | 1303.16 | 140.44 |
-| NB non-spatial month | 1348.70 | 185.98 |
-| Poisson non-spatial month | 1861.53 | 698.81 |
 
 ZINB is only marginally lower by WAIC and has low estimated zero inflation
 (`p = 0.032`), so the negative-binomial spatial-month model is retained for
@@ -116,18 +120,15 @@ Main diagnostics:
 - residual Moran's I: -0.008, p = 0.638;
 - row PIT KS p-value: 0.268;
 - camera PIT KS p-value: 0.000520;
-- required diagnostics pass: TRUE;
-- spatial block CV row mean log predictive density: -1.407;
-- spatial block CV camera 90 percent coverage: 0.900.
-
-Temporal checks:
-
 - deployment-order lag-1 residual correlation: r = 0.018, p = 0.711;
 - formal equal-time 7-day lag-1 check: r = -0.072, p = 0.573;
-- formal equal-time 14-day lag-1 check: r = -0.046, p = 0.412.
-
-The equal-time weekly and biweekly diagnostics are not significant at lag 1
-after the camera-month split.
+- formal equal-time 14-day lag-1 check: r = -0.046, p = 0.412;
+- required diagnostics pass: TRUE;
+- spatial block CV row mean log predictive density: -1.407;
+- spatial block CV row 90 percent coverage: 0.933;
+- spatial block CV camera 90 percent coverage: 0.900;
+- prior sensitivity: retained variants pass required diagnostics;
+- mesh sensitivity: final, finer, and coarser mesh variants pass required diagnostics.
 
 ## Forest-Camera 2024 Model
 
@@ -140,7 +141,7 @@ scripts/wolf_forest_month_refit.R
 Final output folder:
 
 ```text
-results/forest/
+results/forest_2024/
 ```
 
 Model:
@@ -156,7 +157,7 @@ Key settings:
 - 53 cameras;
 - 46 independent wolf events;
 - 4423.0 camera-days;
-- reference month for coefficients: 2024-06;
+- reference month for coefficients: 2024-08;
 - map target: effort-weighted annualized 2024 surface;
 - INLA-SPDE spatial random field;
 - negative-binomial likelihood.
@@ -180,9 +181,12 @@ Main diagnostics:
 - residual Moran's I: -0.041, p = 0.656;
 - PIT KS p-value: 0.952;
 - required diagnostics pass: TRUE;
-- spatial block CV mean log predictive density: -0.415;
+- spatial block CV mean log predictive density: -0.412;
 - spatial block CV 90 percent coverage: 0.978;
-- month-level residual lag-1 ACF: 0.050.
+- month-level residual lag-1 ACF: 0.050;
+- prior sensitivity: all retained variants pass required diagnostics;
+- spatial prior/range sensitivity: fixed and estimated spatial-range variants
+  are reported in `results/forest_2024/wolf_forest_month_prior_sensitivity.csv`.
 
 Main limitation:
 
@@ -201,7 +205,7 @@ scripts/wolf_2024_zinb_month_split_workflow.R
 Final output folder:
 
 ```text
-results/road/
+results/road_2024/
 ```
 
 Model:
@@ -211,13 +215,18 @@ y_i ~ ZeroInflatedNegativeBinomial1(mu_i, size, pi)
 log(mu_i) = log(effort_i) + intercept + month_i + spatial(s_i)
 ```
 
+`ZeroInflatedNegativeBinomial1` is INLA's type-1 zero-inflated negative-binomial
+parameterization. The parameter `pi` represents additional structural-zero
+probability, while the negative-binomial component models overdispersed event
+counts through `mu_i` and `size`.
+
 Key settings:
 
 - 344 camera-month rows;
 - 60 cameras;
 - 479 independent wolf events;
 - 3574.0 camera-days;
-- reference month for coefficients: 2024-09;
+- reference month for coefficients: 2024-08;
 - map target: effort-weighted annualized 2024 surface;
 - INLA-SPDE spatial random field;
 - zero-inflated negative-binomial type 1 likelihood.
@@ -238,10 +247,8 @@ Model comparison:
 | Model | WAIC | Delta WAIC |
 | --- | ---: | ---: |
 | ZINB spatial-month | 933.67 | 0.00 |
-| NB spatial-month | 937.27 | 3.60 |
-| Poisson spatial-month | 997.23 | 63.56 |
-| NB non-spatial month | 1042.52 | 108.85 |
-| Poisson non-spatial month | 1327.08 | 393.41 |
+| NB spatial-month | 937.32 | 3.65 |
+| Poisson spatial-month | 997.19 | 63.52 |
 
 Main diagnostics:
 
@@ -250,35 +257,27 @@ Main diagnostics:
 - posterior predictive camera maximum count: pass;
 - row Pearson dispersion: 0.583;
 - camera Pearson dispersion: 0.236;
-- residual Moran's I: -0.034, p = 0.336;
-- row PIT KS p-value: 0.0905;
-- camera PIT KS p-value: 0.000342;
+- residual Moran's I: -0.033, p = 0.370;
+- row PIT KS p-value: 0.118;
+- camera PIT KS p-value: 0.000492;
 - required diagnostics pass: TRUE;
-- spatial block CV row mean log predictive density: -1.513;
-- spatial block CV camera 90 percent coverage: 0.933.
+- spatial block CV row mean log predictive density: -1.524;
+- spatial block CV row 90 percent coverage: 0.962;
+- spatial block CV camera 90 percent coverage: 0.933;
+- prior sensitivity: retained variants are stable and pass required diagnostics;
+- mesh sensitivity: final, finer, and coarser mesh variants pass required diagnostics.
 
 Temporal checks:
 
 - deployment-order lag-1 residual correlation remains detectable:
-  r = -0.180, p = 0.00239, median gap 12.7 days;
+  r = -0.178, p = 0.00267;
 - formal equal-time 7-day lag-1 check: r = -0.153, p = 0.118;
 - formal equal-time 14-day lag-1 check: r = -0.136, p = 0.094.
 
 The deployment-order check is retained as a warning-style diagnostic because
-the gaps are not fixed. The equal-time weekly and biweekly diagnostics are the
+the gaps are not fixed. The equal-time 7-day and 14-day diagnostics are the
 formal checks, and they are not significant at lag 1 after the camera-month
 split.
-
-Temporal-bin model sensitivity:
-
-| Sensitivity model | Delta WAIC vs month model | 14-day lag-1 p-value |
-| --- | ---: | ---: |
-| Month fixed effects | 0.00 | 0.094 |
-| Biweekly time-bin fixed effects | 2.58 | 0.105 |
-| Weekly time-bin fixed effects | 7.18 | 0.102 |
-
-The month model is retained because it has the best WAIC and gives comparable
-temporal residual behaviour with fewer fixed effects.
 
 ## Final Interpretation
 
