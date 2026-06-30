@@ -5,11 +5,12 @@ from camera-trap data. It is organized so a reader can understand the ecological
 question, the input data structure, the three final statistical models, the
 validation checks, and the outputs needed to reproduce or audit the analysis.
 
-The response variable is the number of independent wolf event IDs recorded by
-camera traps. The statistical approach is Bayesian spatial count modelling with
-INLA and SPDE spatial random fields. Camera effort is used as an exposure term,
-so all predictions are reported as expected wolf events per 100 camera-days.
-The maps are relative encounter-frequency surfaces. They should not be
+The analyses model the number of independent wolf event IDs recorded in
+camera-month rows. The statistical approach is Bayesian count modelling with
+INLA-SPDE spatial random fields. Active camera-days are used as an exposure
+term, calendar month is included as a temporal adjustment, and outputs are
+relative encounter-frequency surfaces expressed as expected wolf events per 100
+camera-days across the sampled survey-year period. The maps should not be
 interpreted as abundance, density, occupancy, or population size.
 
 ## Final Models

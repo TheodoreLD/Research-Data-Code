@@ -1,11 +1,12 @@
 # Bayesian Spatial Encounter-Surface Modelling Of 2023-2024 Camera-Trap Detections
 
 This repository contains a 2023-2024 camera-trap modelling project focused on
-wolf relative encounter frequency. It uses Bayesian spatial count models fitted
-with INLA-SPDE to estimate month-adjusted, effort-weighted annualized wolf
-encounter-frequency surfaces from camera-trap detections, with camera-days as
-exposure and predictions reported as expected independent wolf events per 100
-camera-days.
+the spatial pattern of wolf relative encounter frequency. The analyses model
+independent wolf detections recorded by camera traps using Bayesian count models
+with INLA-SPDE spatial random fields. Active camera-days are used as exposure,
+calendar month is included as a temporal adjustment, and outputs are relative
+encounter-frequency surfaces expressed as expected independent wolf events per
+100 camera-days across the sampled survey-year period.
 
 ## Project
 
