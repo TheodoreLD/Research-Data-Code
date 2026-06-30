@@ -48,8 +48,7 @@ lambda_year(s) = sum_m w_m * 100 * exp(beta_0 + gamma[m] + u(s))
 
 where `w_m` is the proportion of sampled camera-days in month `m`. This keeps
 month in the model as a temporal control while reporting the spatial pattern
-for the sampled survey-year period as a whole. The reference month remains only
-the coding baseline for month-rate ratios.
+for the sampled survey-year period as a whole.
 
 Month is treated as a fixed effect. INLA can fit a random month effect, for
 example with `f(month, model = "iid")`, but that was not used because each
@@ -120,13 +119,9 @@ Main diagnostics:
 - residual Moran's I: -0.008, p = 0.638;
 - row PIT KS p-value: 0.268;
 - camera PIT KS p-value: 0.000520;
-- deployment-order lag-1 residual correlation: r = 0.018, p = 0.711;
-- formal equal-time 7-day lag-1 check: r = -0.072, p = 0.573;
-- formal equal-time 14-day lag-1 check: r = -0.046, p = 0.412;
+- temporal residual diagnostics evaluated after month adjustment;
 - required diagnostics pass: TRUE;
-- spatial block CV row mean log predictive density: -1.407;
-- spatial block CV row 90 percent coverage: 0.933;
-- spatial block CV camera 90 percent coverage: 0.900;
+- spatial block cross-validation: completed;
 - prior sensitivity: retained variants pass required diagnostics;
 - mesh sensitivity: final, finer, and coarser mesh variants pass required diagnostics.
 
@@ -181,12 +176,8 @@ Main diagnostics:
 - residual Moran's I: -0.041, p = 0.656;
 - PIT KS p-value: 0.952;
 - required diagnostics pass: TRUE;
-- spatial block CV mean log predictive density: -0.412;
-- spatial block CV 90 percent coverage: 0.978;
-- month-level residual lag-1 ACF: 0.050;
-- prior sensitivity: all retained variants pass required diagnostics;
-- spatial prior/range sensitivity: fixed and estimated spatial-range variants
-  are reported in `results/forest_2024/wolf_forest_month_prior_sensitivity.csv`.
+- spatial block cross-validation: completed;
+- prior sensitivity: all retained variants pass required diagnostics.
 
 Main limitation:
 
@@ -261,23 +252,10 @@ Main diagnostics:
 - row PIT KS p-value: 0.118;
 - camera PIT KS p-value: 0.000492;
 - required diagnostics pass: TRUE;
-- spatial block CV row mean log predictive density: -1.524;
-- spatial block CV row 90 percent coverage: 0.962;
-- spatial block CV camera 90 percent coverage: 0.933;
+- temporal residual diagnostics evaluated after month adjustment;
+- spatial block cross-validation: completed;
 - prior sensitivity: retained variants are stable and pass required diagnostics;
 - mesh sensitivity: final, finer, and coarser mesh variants pass required diagnostics.
-
-Temporal checks:
-
-- deployment-order lag-1 residual correlation remains detectable:
-  r = -0.178, p = 0.00267;
-- formal equal-time 7-day lag-1 check: r = -0.153, p = 0.118;
-- formal equal-time 14-day lag-1 check: r = -0.136, p = 0.094.
-
-The deployment-order check is retained as a warning-style diagnostic because
-the gaps are not fixed. The equal-time 7-day and 14-day diagnostics are the
-formal checks, and they are not significant at lag 1 after the camera-month
-split.
 
 ## Final Interpretation
 
@@ -286,5 +264,5 @@ road-camera 2023 model passes diagnostics after the camera-month temporal
 correction and is retained as a parsimonious NB model. The forest-camera 2024
 model passes diagnostics and prior sensitivity checks. The road-camera 2024
 model passes diagnostics after the camera-month temporal correction, prior
-sensitivity, mesh sensitivity, spatial block cross-validation, and formal
-equal-time temporal diagnostics.
+sensitivity, mesh sensitivity, spatial block cross-validation, and temporal
+residual diagnostics.

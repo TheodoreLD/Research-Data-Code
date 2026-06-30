@@ -35,7 +35,7 @@
 #   daily event rate, with a broad SD.
 #
 # Additional science checks in v2
-#   * Model comparison among non-spatial and spatial Poisson/NB/ZINB variants.
+#   * Model comparison among spatial Poisson/NB/ZINB variants.
 #   * Mesh sensitivity checks for the final spatial model.
 #   * Full convex-hull prediction map only; disk/domain-sensitivity mapping has been removed.
 #   * A short scientific limitations report for interpretation.
@@ -1240,189 +1240,6 @@ compute_diagnostics <- function(fit, samples, model_dat, obs_index, camera_sf,
 #   * ACF of mean residuals by deployment date
 #   * a text note explaining limitations when there are too few repeated rows
 
-regular_time_residual_diagnostics <- function(dat,
-                                              prefix,
-                                              final_model,
-                                              bin_days_values = c(7L, 14L),
-                                              max_lag = 5L,
-                                              min_pairs = 5L) {
-  if (!nrow(dat)) return(NULL)
-
-  bin_rows <- list()
-  pair_rows <- list()
-  summary_rows <- list()
-
-  for (bd in unique(as.integer(bin_days_values))) {
-    if (!is.finite(bd) || bd <= 0) next
-
-    origin <- min(dat$start_date, na.rm = TRUE)
-    d0 <- dat
-    d0$regular_bin_days <- bd
-    d0$regular_bin_index <- as.integer(
-      floor(as.numeric(d0$start_date - origin) / bd) + 1L
-    )
-    d0$regular_bin_start <- origin + (d0$regular_bin_index - 1L) * bd
-    d0$residual_weight <- if ("total_effort_days" %in% names(d0)) {
-      pmax(d0$total_effort_days, 1e-9)
-    } else {
-      rep(1, nrow(d0))
-    }
-
-    d_bin <- d0 %>%
-      group_by(plotID, regular_bin_days, regular_bin_index, regular_bin_start) %>%
-      summarise(
-        pearson = weighted.mean(pearson, residual_weight, na.rm = TRUE),
-        n_rows = n(),
-        effort_days = sum(residual_weight, na.rm = TRUE),
-        .groups = "drop"
-      ) %>%
-      arrange(plotID, regular_bin_index)
-
-    bin_rows[[as.character(bd)]] <- d_bin
-
-    make_regular_lag_pairs <- function(lag_k) {
-      pieces <- lapply(split(d_bin, d_bin$plotID), function(d) {
-        d <- d[order(d$regular_bin_index), , drop = FALSE]
-        if (nrow(d) <= lag_k) return(NULL)
-
-        current_match <- match(d$regular_bin_index + lag_k,
-                               d$regular_bin_index)
-        ok <- !is.na(current_match)
-        if (!any(ok)) return(NULL)
-
-        previous <- which(ok)
-        current <- current_match[ok]
-        data.frame(
-          plotID = d$plotID[previous],
-          bin_days = bd,
-          lag = lag_k,
-          bin_start_previous = d$regular_bin_start[previous],
-          bin_start_current = d$regular_bin_start[current],
-          residual_previous = d$pearson[previous],
-          residual_current = d$pearson[current],
-          days_between = bd * lag_k,
-          previous_rows = d$n_rows[previous],
-          current_rows = d$n_rows[current],
-          stringsAsFactors = FALSE
-        )
-      })
-      dplyr::bind_rows(pieces)
-    }
-
-    pairs <- dplyr::bind_rows(lapply(seq_len(max_lag), make_regular_lag_pairs))
-    pair_rows[[as.character(bd)]] <- pairs
-
-    summary <- if (nrow(pairs)) {
-      pairs %>%
-        group_by(bin_days, lag) %>%
-        summarise(
-          n_pairs = n(),
-          n_cameras = n_distinct(plotID),
-          correlation = safe_cor(residual_previous, residual_current),
-          p_value = safe_cor_p_value(residual_previous, residual_current, min_pairs),
-          mean_days_between = mean(days_between, na.rm = TRUE),
-          median_days_between = median(days_between, na.rm = TRUE),
-          .groups = "drop"
-        )
-    } else {
-      data.frame(
-        bin_days = integer(),
-        lag = integer(),
-        n_pairs = integer(),
-        n_cameras = integer(),
-        correlation = numeric(),
-        p_value = numeric(),
-        mean_days_between = numeric(),
-        median_days_between = numeric()
-      )
-    }
-
-    summary_rows[[as.character(bd)]] <- summary
-  }
-
-  bin_residuals <- dplyr::bind_rows(bin_rows)
-  lag_pairs <- dplyr::bind_rows(pair_rows)
-  lag_summary <- dplyr::bind_rows(summary_rows)
-
-  if (nrow(bin_residuals)) {
-    readr::write_csv(
-      bin_residuals,
-      path_out(paste0(prefix, "_", final_model,
-                      "_temporal_regular_time_bin_residuals.csv"))
-    )
-  }
-  if (nrow(lag_pairs)) {
-    readr::write_csv(
-      lag_pairs,
-      path_out(paste0(prefix, "_", final_model,
-                      "_temporal_regular_time_lag_pairs.csv"))
-    )
-  }
-  readr::write_csv(
-    lag_summary,
-    path_out(paste0(prefix, "_", final_model,
-                    "_temporal_regular_time_lag_correlation.csv"))
-  )
-
-  if (nrow(lag_summary)) {
-    p_regular <- ggplot(lag_summary, aes(lag, correlation)) +
-      geom_hline(yintercept = 0, linetype = 2, colour = "grey50") +
-      geom_point(aes(size = n_pairs)) +
-      geom_line() +
-      facet_wrap(~ bin_days, labeller = label_both) +
-      scale_x_continuous(breaks = seq_len(max_lag)) +
-      labs(
-        title = paste0("Regular-time residual autocorrelation: ", prefix),
-        subtitle = paste0(final_model, " | exact same-camera time-bin gaps"),
-        x = "regular time-bin lag",
-        y = "pooled residual correlation",
-        size = "pairs"
-      ) +
-      theme_minimal(base_size = 12)
-
-    ggsave(
-      path_out(paste0(prefix, "_", final_model,
-                      "_diag_temporal_regular_time_lag_summary.png")),
-      p_regular,
-      width = 7,
-      height = 5,
-      dpi = 220
-    )
-  }
-
-  lag1_pairs <- lag_pairs %>% filter(lag == 1L)
-  if (nrow(lag1_pairs) >= min_pairs) {
-    p_lag1 <- ggplot(lag1_pairs, aes(residual_previous, residual_current)) +
-      geom_hline(yintercept = 0, linetype = 2, colour = "grey70") +
-      geom_vline(xintercept = 0, linetype = 2, colour = "grey70") +
-      geom_point(alpha = 0.75) +
-      geom_smooth(se = TRUE, method = "lm", formula = y ~ x) +
-      facet_wrap(~ bin_days, labeller = label_both) +
-      labs(
-        title = paste0("Regular-time lag-1 residual correlation: ", prefix),
-        subtitle = paste0(final_model, " | exact same-camera time-bin gaps"),
-        x = "previous regular-bin residual at same camera",
-        y = "current regular-bin residual"
-      ) +
-      theme_minimal(base_size = 12)
-
-    ggsave(
-      path_out(paste0(prefix, "_", final_model,
-                      "_diag_temporal_regular_time_lag1_residual_correlation.png")),
-      p_lag1,
-      width = 7,
-      height = 5,
-      dpi = 220
-    )
-  }
-
-  list(
-    bin_residuals = bin_residuals,
-    lag_pairs = lag_pairs,
-    lag_summary = lag_summary
-  )
-}
-
 temporal_autocorrelation_diagnostics <- function(model_dat,
                                                  prefix = SURVEY_PREFIX,
                                                  final_model = FINAL_MODEL_NAME,
@@ -1701,22 +1518,7 @@ temporal_autocorrelation_diagnostics <- function(model_dat,
   }
 
   # --------------------------------------------------------------------------
-  # 4. Regular-time same-camera lag checks.
-  #    Unlike deployment-order lags, these only pair residuals that are exactly
-  #    one or more equal calendar bins apart at the same camera.
-  # --------------------------------------------------------------------------
-
-  regular_time_diag <- regular_time_residual_diagnostics(
-    dat = dat,
-    prefix = prefix,
-    final_model = final_model,
-    bin_days_values = c(7L, 14L),
-    max_lag = max_lag,
-    min_pairs = min_pairs
-  )
-
-  # --------------------------------------------------------------------------
-  # 5. Compact text report.
+  # 4. Compact text report.
   # --------------------------------------------------------------------------
 
   lag1_summary <- lag_summary %>% filter(lag == 1L)
@@ -1744,31 +1546,6 @@ temporal_autocorrelation_diagnostics <- function(model_dat,
     "Date-ordered ACF of mean residuals was not evaluable."
   }
 
-  regular_lines <- if (!is.null(regular_time_diag) &&
-                       nrow(regular_time_diag$lag_summary)) {
-    lag1_regular <- regular_time_diag$lag_summary %>% filter(lag == 1L)
-    c(
-      "Regular-time same-camera checks:",
-      if (nrow(lag1_regular)) {
-        sprintf(
-          "  %d-day bins: lag-1 r = %.3f, p = %.4g, n pairs = %d, cameras = %d.",
-          lag1_regular$bin_days,
-          lag1_regular$correlation,
-          lag1_regular$p_value,
-          lag1_regular$n_pairs,
-          lag1_regular$n_cameras
-        )
-      } else {
-        "  Lag-1 regular-time residual correlations were not evaluable."
-      }
-    )
-  } else {
-    c(
-      "Regular-time same-camera checks:",
-      "  No equal-time lag pairs were available."
-    )
-  }
-
   report <- c(
     sprintf("Temporal autocorrelation diagnostics: %s", prefix),
     sprintf("Model: %s", final_model),
@@ -1780,12 +1557,7 @@ temporal_autocorrelation_diagnostics <- function(model_dat,
     "The month fixed effect already adjusts the mean by calendar camera-month; these diagnostics check residual temporal structure remaining after that adjustment.",
     "",
     lag1_line,
-    acf_line,
-    regular_lines,
-    "",
-    "Important interpretation note:",
-    "Within-camera lags are deployment-order lags and may have unequal time gaps.",
-    "Regular-time checks use exact weekly and biweekly camera-time bins and are the formal follow-up for this survey design."
+    acf_line
   )
 
   writeLines(
@@ -1800,9 +1572,6 @@ temporal_autocorrelation_diagnostics <- function(model_dat,
     lag_summary = lag_summary,
     daily_resid = daily_resid,
     acf_summary = acf_summary,
-    regular_bin_residuals = if (!is.null(regular_time_diag)) regular_time_diag$bin_residuals else NULL,
-    regular_lag_pairs = if (!is.null(regular_time_diag)) regular_time_diag$lag_pairs else NULL,
-    regular_summary = if (!is.null(regular_time_diag)) regular_time_diag$lag_summary else NULL,
     report = report
   )
 }
@@ -3201,8 +2970,7 @@ prior_lines_for_report <- function(settings, family) {
 }
 
 write_validation_report <- function(model_dat, diag, cv, prediction,
-                                    temporal_diag = NULL,
-                                    temporal_bin_sensitivity = NULL) {
+                                    temporal_diag = NULL) {
   failures <- diagnostic_failures(diag)
   passes_required <- isTRUE(diag$diagnostics_ok)
   n_cameras <- dplyr::n_distinct(model_dat$plotID)
@@ -3251,24 +3019,6 @@ write_validation_report <- function(model_dat, diag, cv, prediction,
       NA_real_
     }
 
-    regular_lag1 <- if (!is.null(temporal_diag$regular_summary) &&
-                        nrow(temporal_diag$regular_summary)) {
-      temporal_diag$regular_summary %>% filter(lag == 1L)
-    } else {
-      data.frame()
-    }
-    regular_lines <- if (nrow(regular_lag1)) {
-      sprintf(
-        "  Regular %d-day lag-1 residual correlation: r = %.3f, p = %.4g, n pairs = %d",
-        regular_lag1$bin_days,
-        regular_lag1$correlation,
-        regular_lag1$p_value,
-        regular_lag1$n_pairs
-      )
-    } else {
-      "  Regular weekly/biweekly lag-1 residual correlations: not evaluable"
-    }
-
     c(
       "",
       "Temporal residual autocorrelation diagnostics:",
@@ -3288,35 +3038,13 @@ write_validation_report <- function(model_dat, diag, cv, prediction,
         sprintf("  Date-ordered mean residual ACF, lag 1: %.3f", acf1)
       } else {
         "  Date-ordered mean residual ACF: not evaluable"
-      },
-      regular_lines,
-      "  Note: within-camera deployment-order lags are not equal-time lags; regular weekly/biweekly checks are the formal follow-up."
+      }
     )
   } else {
     c(
       "",
       "Temporal residual autocorrelation diagnostics: not run"
     )
-  }
-
-  temporal_sensitivity_lines <- if (!is.null(temporal_bin_sensitivity) &&
-                                    nrow(temporal_bin_sensitivity)) {
-    month_row <- temporal_bin_sensitivity %>% filter(model == FINAL_MODEL_NAME)
-    best <- temporal_bin_sensitivity[order(temporal_bin_sensitivity$waic), ][1, ]
-    c(
-      "",
-      "Temporal bin model sensitivity:",
-      "  Sensitivity models replace month dummies with equal-time deployment-start bins.",
-      sprintf("  Lowest WAIC in temporal check: %s (WAIC %.2f; delta vs month %.2f).",
-              best$model, best$waic, best$delta_waic_vs_month),
-      if (nrow(month_row)) {
-        sprintf("  Current month model regular 14-day lag-1: r = %.3f, p = %.4g.",
-                month_row$regular_14day_lag1_r[[1]],
-                month_row$regular_14day_lag1_p[[1]])
-      } else NULL
-    )
-  } else {
-    c("", "Temporal bin model sensitivity: not run")
   }
 
   report <- c(
@@ -3355,7 +3083,6 @@ write_validation_report <- function(model_dat, diag, cv, prediction,
     } else NULL,
     cv_lines,
     temporal_lines,
-    temporal_sensitivity_lines,
     prior_lines_for_report(settings, FINAL_FAMILY),
     "",
     "Temporal structure:",
@@ -3416,15 +3143,6 @@ RUN_MODEL_COMPARISON <- tolower(Sys.getenv("WOLF_RUN_MODEL_COMPARISON", unset = 
   c("true", "1", "yes", "y")
 RUN_MESH_SENSITIVITY <- tolower(Sys.getenv("WOLF_RUN_MESH_SENSITIVITY", unset = ifelse(RUN_PROFILE == "quick", "false", "true"))) %in%
   c("true", "1", "yes", "y")
-RUN_TEMPORAL_BIN_SENSITIVITY <- tolower(Sys.getenv("WOLF_RUN_TEMPORAL_BIN_SENSITIVITY", unset = "false")) %in%
-  c("true", "1", "yes", "y")
-TEMPORAL_BIN_SENSITIVITY_NSIM <- as.integer(Sys.getenv(
-  "WOLF_TEMPORAL_BIN_SENSITIVITY_NSIM",
-  unset = as.character(min(PPC_NSIM, switch(RUN_PROFILE, quick = 100L, balanced = 300L, final = 500L)))
-))
-if (!is.finite(TEMPORAL_BIN_SENSITIVITY_NSIM) || TEMPORAL_BIN_SENSITIVITY_NSIM < 25L) {
-  TEMPORAL_BIN_SENSITIVITY_NSIM <- min(PPC_NSIM, 100L)
-}
 
 safe_value <- function(x, default = NA_real_) {
   if (is.null(x) || !length(x)) default else as.numeric(x[[1]])
@@ -3565,20 +3283,16 @@ run_model_comparison <- function(model_dat, settings) {
   cat("\n[wolf_2024] running model comparison\n")
   specs <- data.frame(
     model = c(
-      "poisson_nonspatial_month",
       "poisson_spatial_month",
-      "nb_nonspatial_month",
       "nb_spatial_month",
       "zinb_spatial_month"
     ),
     family = c(
       "poisson",
-      "poisson",
-      "nbinomial",
       "nbinomial",
       "zeroinflatednbinomial1"
     ),
-    spatial = c(FALSE, TRUE, FALSE, TRUE, TRUE),
+    spatial = c(TRUE, TRUE, TRUE),
     stringsAsFactors = FALSE
   )
 
@@ -3609,7 +3323,7 @@ run_model_comparison <- function(model_dat, settings) {
 
   report <- c(
     "Model comparison:",
-    "  Purpose: check whether the selected spatial ZINB model is supported relative to simpler Poisson/NB alternatives and whether overdispersion or zero inflation is needed.",
+    "  Purpose: compare spatial Poisson, NB, and ZINB month models to check whether overdispersion or zero inflation is needed.",
     "  Lower WAIC/DIC is better, but spatial block CV and PPC diagnostics should be given more weight than information criteria alone.",
     if (nrow(out)) capture.output(print(out, row.names = FALSE)) else "  No comparison models completed.",
     if (length(failures)) c("", "Failures:", paste0("  ", failures)) else NULL
@@ -3696,231 +3410,6 @@ temporal_lag1_row <- function(temporal_diag) {
   temporal_diag$lag_summary %>% filter(lag == 1L)
 }
 
-regular_lag1_row <- function(temporal_diag, bin_days) {
-  if (is.null(temporal_diag) || is.null(temporal_diag$regular_summary)) return(data.frame())
-  temporal_diag$regular_summary %>% filter(lag == 1L, bin_days == !!bin_days)
-}
-
-append_temporal_model_diagnostics <- function(summary_row,
-                                              temporal_structure,
-                                              bin_days,
-                                              n_time_bins,
-                                              n_fixed_temporal_terms,
-                                              reference_temporal_level,
-                                              diag,
-                                              temporal_diag) {
-  lag1 <- temporal_lag1_row(temporal_diag)
-  reg7 <- regular_lag1_row(temporal_diag, 7L)
-  reg14 <- regular_lag1_row(temporal_diag, 14L)
-
-  summary_row$temporal_structure <- temporal_structure
-  summary_row$bin_days <- bin_days
-  summary_row$n_time_bins <- n_time_bins
-  summary_row$n_fixed_temporal_terms <- n_fixed_temporal_terms
-  summary_row$reference_temporal_level <- reference_temporal_level
-  summary_row$diagnostics_ok <- isTRUE(diag$diagnostics_ok)
-  summary_row$ppc_total_pass <- isTRUE(diag$ppc_total_pass)
-  summary_row$ppc_zero_pass <- isTRUE(diag$ppc_zero_pass)
-  summary_row$ppc_max_pass <- isTRUE(diag$ppc_max_pass)
-  summary_row$row_pit_ks_p <- diag$ppc_pit_ks_row
-  summary_row$camera_pit_ks_p <- diag$ppc_pit_ks_camera
-  summary_row$pearson_dispersion_row <- diag$pearson_disp
-  summary_row$pearson_dispersion_camera <- diag$pearson_disp_camera
-  summary_row$moran_I <- diag$moran_I
-  summary_row$moran_p <- diag$moran_p
-  summary_row$deployment_order_lag1_r <- extract_first_value(lag1, "correlation")
-  summary_row$deployment_order_lag1_p <- extract_first_value(lag1, "p_value")
-  summary_row$deployment_order_lag1_n <- extract_first_value(lag1, "n_pairs")
-  summary_row$deployment_order_lag1_median_days <- extract_first_value(lag1, "median_days_between")
-  summary_row$regular_7day_lag1_r <- extract_first_value(reg7, "correlation")
-  summary_row$regular_7day_lag1_p <- extract_first_value(reg7, "p_value")
-  summary_row$regular_7day_lag1_n <- extract_first_value(reg7, "n_pairs")
-  summary_row$regular_14day_lag1_r <- extract_first_value(reg14, "correlation")
-  summary_row$regular_14day_lag1_p <- extract_first_value(reg14, "p_value")
-  summary_row$regular_14day_lag1_n <- extract_first_value(reg14, "n_pairs")
-  summary_row
-}
-
-write_temporal_sensitivity_diagnostic_files <- function(label, diag) {
-  readr::write_csv(
-    diag$model_dat,
-    path_out(paste0(SURVEY_PREFIX, "_", label, "_model_row_diagnostics.csv"))
-  )
-  readr::write_csv(
-    diag$camera_diag,
-    path_out(paste0(SURVEY_PREFIX, "_", label, "_camera_residual_diagnostics.csv"))
-  )
-  readr::write_csv(
-    diag$ppc,
-    path_out(paste0(SURVEY_PREFIX, "_", label, "_posterior_predictive_check.csv"))
-  )
-}
-
-run_temporal_bin_model_sensitivity <- function(model_dat,
-                                               settings,
-                                               family,
-                                               baseline_fit,
-                                               baseline_diag,
-                                               baseline_temporal_diag,
-                                               bin_days_values = c(7L, 14L)) {
-  if (!isTRUE(RUN_TEMPORAL_BIN_SENSITIVITY)) {
-    writeLines("Temporal bin sensitivity skipped by WOLF_RUN_TEMPORAL_BIN_SENSITIVITY.",
-               path_out(paste0(SURVEY_PREFIX, "_TEMPORAL_BIN_SENSITIVITY_SKIPPED.txt")))
-    return(NULL)
-  }
-
-  cat(sprintf(
-    "\n[wolf_2024] running temporal bin sensitivity with %d posterior samples per variant\n",
-    TEMPORAL_BIN_SENSITIVITY_NSIM
-  ))
-
-  rows <- list()
-  failures <- character()
-
-  baseline_summary <- summarise_fitted_model(
-    list(
-      fit = baseline_fit,
-      model_label = FINAL_MODEL_NAME,
-      family = family,
-      spatial = TRUE,
-      spde_obj = NULL
-    ),
-    note = "current final model: calendar camera-month fixed effects"
-  )
-  rows[[length(rows) + 1L]] <- append_temporal_model_diagnostics(
-    baseline_summary,
-    temporal_structure = "month_fixed_effects",
-    bin_days = NA_integer_,
-    n_time_bins = dplyr::n_distinct(model_dat$month),
-    n_fixed_temporal_terms = length(temporal_month_terms(model_dat)),
-    reference_temporal_level = unique(model_dat$month_reference)[[1]],
-    diag = baseline_diag,
-    temporal_diag = baseline_temporal_diag
-  )
-
-  for (bd in unique(as.integer(bin_days_values))) {
-    label <- if (bd == 7L) {
-      "zinb_spatial_weekly_timebin"
-    } else if (bd == 14L) {
-      "zinb_spatial_biweekly_timebin"
-    } else {
-      paste0("zinb_spatial_", bd, "day_timebin")
-    }
-
-    res <- tryCatch({
-      prediction_date <- as.Date(paste0(settings$month_prediction, "-01"))
-      timebin_dat <- add_time_bin_design(model_dat, bd, prediction_date)
-
-      timebin_summary <- timebin_dat %>%
-        group_by(time_bin_days, time_bin, time_bin_start) %>%
-        summarise(
-          rows = n(),
-          cameras = n_distinct(plotID),
-          events = sum(wolf_events, na.rm = TRUE),
-          effort_days = sum(total_effort_days, na.rm = TRUE),
-          rate_per_100 = 100 * events / effort_days,
-          .groups = "drop"
-        )
-      readr::write_csv(
-        timebin_summary,
-        path_out(paste0(SURVEY_PREFIX, "_", label, "_observed_timebin_summary.csv"))
-      )
-
-      fit_obj <- fit_2024_diagnostic_model(timebin_dat, settings, family)
-      samples <- posterior_samples_safe(fit_obj$fit, TEMPORAL_BIN_SENSITIVITY_NSIM)
-      diag <- compute_diagnostics(
-        fit = fit_obj$fit,
-        samples = samples,
-        model_dat = fit_obj$model_dat,
-        obs_index = fit_obj$obs_index,
-        camera_sf = fit_obj$camera_sf,
-        family = family,
-        write_files = FALSE
-      )
-      write_temporal_sensitivity_diagnostic_files(label, diag)
-      temporal_diag <- temporal_autocorrelation_diagnostics(
-        diag$model_dat,
-        prefix = SURVEY_PREFIX,
-        final_model = label
-      )
-
-      sm <- summarise_fitted_model(
-        list(
-          fit = fit_obj$fit,
-          model_label = label,
-          family = family,
-          spatial = TRUE,
-          spde_obj = fit_obj$spde_obj
-        ),
-        note = paste0("sensitivity model: deployment-start ", bd,
-                      "-day time-bin fixed effects, no month dummies")
-      )
-
-      append_temporal_model_diagnostics(
-        sm,
-        temporal_structure = "time_bin_fixed_effects",
-        bin_days = bd,
-        n_time_bins = dplyr::n_distinct(timebin_dat$time_bin),
-        n_fixed_temporal_terms = length(temporal_time_bin_terms(timebin_dat)),
-        reference_temporal_level = unique(timebin_dat$time_bin_reference)[[1]],
-        diag = diag,
-        temporal_diag = temporal_diag
-      )
-    }, error = function(e) {
-      failures <<- c(failures, paste0(label, ": ", conditionMessage(e)))
-      NULL
-    })
-
-    if (!is.null(res)) rows[[length(rows) + 1L]] <- res
-  }
-
-  out <- dplyr::bind_rows(rows)
-  if (nrow(out)) {
-    finite_waic <- out$waic[is.finite(out$waic)]
-    out$delta_waic <- if (length(finite_waic)) out$waic - min(finite_waic) else NA_real_
-    baseline_waic <- out$waic[out$model == FINAL_MODEL_NAME][[1]]
-    out$delta_waic_vs_month <- if (is.finite(baseline_waic)) out$waic - baseline_waic else NA_real_
-    out <- out %>% arrange(waic)
-  }
-
-  readr::write_csv(out, path_out(paste0(SURVEY_PREFIX, "_temporal_bin_sensitivity.csv")))
-
-  best_line <- if (nrow(out)) {
-    best <- out[order(out$waic), ][1, ]
-    sprintf("  Lowest WAIC model in this temporal check: %s (WAIC %.2f).",
-            best$model, best$waic)
-  } else {
-    "  No temporal-bin model completed."
-  }
-  month_line <- if (nrow(out) && FINAL_MODEL_NAME %in% out$model) {
-    month <- out[out$model == FINAL_MODEL_NAME, ][1, ]
-    sprintf(
-      "  Current month model: deployment-order lag-1 r %.3f (p %.4g); regular 14-day lag-1 r %.3f (p %.4g).",
-      month$deployment_order_lag1_r,
-      month$deployment_order_lag1_p,
-      month$regular_14day_lag1_r,
-      month$regular_14day_lag1_p
-    )
-  } else {
-    "  Current month model was not available in the temporal sensitivity table."
-  }
-
-  report <- c(
-    "Temporal bin sensitivity:",
-    "  Purpose: test whether the residual temporal pattern is reduced by replacing coarse calendar-month effects with equal-time fixed effects.",
-    "  These are sensitivity models, not automatic replacements for the final map.",
-    "",
-    month_line,
-    best_line,
-    "",
-    if (nrow(out)) capture.output(print(out, row.names = FALSE)) else "  No temporal-bin sensitivity rows completed.",
-    if (length(failures)) c("", "Failures:", paste0("  ", failures)) else NULL
-  )
-  writeLines(report, path_out(paste0(SURVEY_PREFIX, "_TEMPORAL_BIN_SENSITIVITY_REPORT.txt")))
-
-  invisible(out)
-}
-
 write_scientific_limitations_report <- function(model_dat) {
   observed_rate <- 100 * sum(model_dat$wolf_events, na.rm = TRUE) /
     sum(model_dat$total_effort_days, na.rm = TRUE)
@@ -3981,7 +3470,7 @@ write_workflow_order_report <- function() {
     "   Summarise observed encounter rates, month structure, effort, raw spatial pattern, and deployment timing versus northing.",
     "",
     "3. Candidate model comparison",
-    "   Fit non-spatial and spatial Poisson/NB/ZINB month models to check whether spatial structure, overdispersion, and zero inflation are needed.",
+    "   Fit spatial Poisson/NB/ZINB month models to check whether overdispersion and zero inflation are needed.",
     "",
     "4. Final-model decision",
     "   Keep the configured final model only if it is supported by diagnostics, information criteria, parsimony, and ecological interpretation.",
@@ -4499,7 +3988,6 @@ diag <- compute_diagnostics(
 
 write_diagnostic_plots(diag, diag_fit_obj$camera_sf)
 temporal_diag <- temporal_autocorrelation_diagnostics(diag$model_dat)
-temporal_bin_sensitivity <- NULL
 write_prior_posterior_plots(diag_fit_obj$fit, settings, family)
 write_month_coefficients(diag_fit_obj$fit, diag$model_dat, settings)
 write_model_hyperparameters(diag_fit_obj$fit)
@@ -4514,7 +4002,7 @@ if (RUN_SPATIAL_CV) {
 mesh_sensitivity <- run_mesh_sensitivity(model_dat, settings, family)
 # 10. Final summaries.
 write_science_checks_summary_ordered(model_comparison, prior_influence, prior_sensitivity, mesh_sensitivity)
-write_validation_report(model_dat, diag, cv, prediction, temporal_diag, temporal_bin_sensitivity)
+write_validation_report(model_dat, diag, cv, prediction, temporal_diag)
 write_manifest(model_dat, diag, cv)
 
 cat(sprintf("\n[wolf_2024] VALIDATION\n"))

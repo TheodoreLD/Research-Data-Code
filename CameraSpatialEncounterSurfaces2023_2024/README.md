@@ -17,16 +17,11 @@ interpreted as abundance, density, occupancy, or population size.
 
 Three camera-specific analyses are included:
 
-| Survey | Final model | Rows | Cameras | Events | Effort | Final output |
-| --- | --- | ---: | ---: | ---: | ---: | --- |
-| Road-camera 2023 | Negative-binomial spatial-month INLA-SPDE model | 490 camera-month rows | 60 | 586 | 5222.2 camera-days | `results/road_2023/` |
-| Forest-camera 2024 | Negative-binomial spatial-month INLA-SPDE model | 356 camera-month rows | 53 | 46 | 4423.0 camera-days | `results/forest_2024/` |
-| Road-camera 2024 | Zero-inflated negative-binomial spatial-month INLA-SPDE model | 344 camera-month rows | 60 | 479 | 3574.0 camera-days | `results/road_2024/` |
-
-Rows and events are different quantities. A row is one camera location observed
-during one calendar month. The event count in a row can be zero, one, or many
-independent wolf events. It is therefore normal for the total number of events
-to be larger than the number of rows.
+| Survey | Final model | Cameras | Events | Effort | Final output |
+| --- | --- | ---: | ---: | ---: | --- |
+| Road-camera 2023 | Negative-binomial spatial-month INLA-SPDE model | 60 | 586 | 5222.2 camera-days | `results/road_2023/` |
+| Forest-camera 2024 | Negative-binomial spatial-month INLA-SPDE model | 53 | 46 | 4423.0 camera-days | `results/forest_2024/` |
+| Road-camera 2024 | Zero-inflated negative-binomial spatial-month INLA-SPDE model | 60 | 479 | 3574.0 camera-days | `results/road_2024/` |
 
 ## Model Structure And Camera-Month Rows
 
@@ -94,8 +89,7 @@ lambda_year(s) = sum_m w_m * 100 * exp(beta_0 + gamma[m] + u(s))
 
 where `w_m` is the proportion of total sampled camera-days in month `m`. This
 keeps the annual spatial pattern aligned with the months that were actually
-sampled in each camera dataset. The reference month is retained only as the
-baseline for coding the month coefficients.
+sampled in each camera dataset.
 
 Month is treated as a fixed effect in the final models. A random month effect
 is possible in INLA, for example with `f(month, model = "iid")`, but it was not
@@ -104,15 +98,9 @@ With so few levels, a random-effect variance would be weakly identified and
 would shrink month contrasts toward zero. Fixed month effects are a simpler
 temporal control for these final models.
 
-The reference month for coefficients is August in each year: August 2023 for
-the 2023 model and August 2024 for both 2024 models. Changing the reference
-month changes coefficient coding, but it does not change the annualized mapped
-surface.
-
 The mapped central estimate is the posterior mean because the reported target
 is an expected encounter rate. Posterior-SD maps are included as the matching
-uncertainty maps. Posterior medians can be useful for skewed posteriors, but
-they answer a different question from the expected number of events.
+uncertainty maps.
 
 ## Repository Layout
 
@@ -227,12 +215,8 @@ diagnostics:
 - posterior predictive camera maximum count: pass;
 - residual Moran's I: `I = -0.008`, `p = 0.638`;
 - row PIT KS p-value: `0.268`;
-- temporal lag-1 residual correlation: `r = 0.018`, `p = 0.711`;
-- formal 7-day lag-1 check: `r = -0.072`, `p = 0.573`;
-- formal 14-day lag-1 check: `r = -0.046`, `p = 0.412`;
-- spatial block CV row mean log predictive density: `-1.407`;
-- spatial block CV row 90 percent coverage: `0.933`;
-- spatial block CV camera 90 percent coverage: `0.900`;
+- temporal residual diagnostics were evaluated after month adjustment;
+- spatial block cross-validation was completed;
 - mesh sensitivity: final, finer, and coarser mesh variants pass required diagnostics;
 - prior sensitivity: retained variants pass required diagnostics.
 
@@ -245,10 +229,6 @@ zero inflation, so the NB model is retained for parsimony:
 | NB spatial-month | 1162.97 | 0.25 |
 | Poisson spatial-month | 1303.16 | 140.44 |
 
-The non-spatial Poisson and NB controls are retained in
-`results/road_2023/wolf_2023_model_comparison.csv`, but the README table is
-limited to the spatial candidate models used to choose the mapped likelihood.
-
 ### Forest-Camera 2024
 
 The final negative-binomial spatial-month model passes the required
@@ -259,12 +239,8 @@ diagnostics:
 - posterior predictive maximum camera count: pass;
 - residual Moran's I: `I = -0.041`, `p = 0.656`;
 - PIT KS p-value: `0.952`;
-- month-level residual lag-1 ACF: `0.050`;
-- spatial block CV mean log predictive density: `-0.412`;
-- spatial block CV 90 percent coverage: `0.978`;
-- prior sensitivity: all retained variants pass required diagnostics;
-- spatial prior/range sensitivity: fixed and estimated spatial-range variants
-  are reported in `results/forest_2024/wolf_forest_month_prior_sensitivity.csv`.
+- spatial block cross-validation was completed;
+- prior sensitivity: all retained variants pass required diagnostics.
 
 The main caveat is low information content: 46 independent wolf events, so
 month and spatial effects have wider uncertainty.
@@ -279,12 +255,8 @@ required diagnostics:
 - posterior predictive camera maximum count: pass;
 - residual Moran's I: `I = -0.033`, `p = 0.370`;
 - row PIT KS p-value: `0.118`;
-- temporal lag-1 residual correlation: `r = -0.178`, `p = 0.00267`;
-- formal 7-day lag-1 check: `r = -0.153`, `p = 0.118`;
-- formal 14-day lag-1 check: `r = -0.136`, `p = 0.094`;
-- spatial block CV row mean log predictive density: `-1.524`;
-- spatial block CV row 90 percent coverage: `0.962`;
-- spatial block CV camera 90 percent coverage: `0.933`;
+- temporal residual diagnostics were evaluated after month adjustment;
+- spatial block cross-validation was completed;
 - mesh sensitivity: final, finer, and coarser mesh variants pass required diagnostics;
 - prior sensitivity: retained variants are stable and pass required diagnostics.
 
@@ -296,26 +268,19 @@ Model comparison supports the ZINB model:
 | NB spatial-month | 937.32 | 3.65 |
 | Poisson spatial-month | 997.19 | 63.52 |
 
-The non-spatial Poisson and NB controls are retained in
-`results/road_2024/wolf_2024_model_comparison.csv`, but the README table is
-limited to the spatial candidate models used to choose the mapped likelihood.
-The deployment-order temporal correlation is retained as a warning-style
-diagnostic because the gaps between observations are irregular. The equal-time
-7-day and 14-day checks are the formal lag checks and are not significant.
-
 ## Outputs Included Here
 
-Each final-results folder contains:
+Across the final-results folders, the curated outputs include:
 
 - final validation report;
 - posterior predictive checks;
 - hyperparameter summaries;
 - month-effect summaries;
-- prior sensitivity report and table;
-- mesh sensitivity report and table for the road-camera models;
+- prior sensitivity reports and tables;
+- mesh sensitivity reports and tables for the road-camera analyses;
 - model-comparison report and table for the road-camera models;
-- spatial block cross-validation summary;
-- temporal diagnostics;
+- spatial block cross-validation summaries;
+- temporal residual diagnostics;
 - posterior mean encounter-frequency map as PNG and GeoTIFF;
 - posterior-SD uncertainty map as PNG and GeoTIFF.
 

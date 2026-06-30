@@ -23,7 +23,7 @@ Key files:
 - `wolf_2023_prior_sensitivity.csv`
 - `wolf_2023_MESH_SENSITIVITY_REPORT.txt`
 - `wolf_2023_mesh_sensitivity.csv`
-- `wolf_2023_nb_spatial_month_temporal_regular_time_lag_correlation.csv`
+- `wolf_2023_nb_spatial_month_TEMPORAL_AUTOCORRELATION_REPORT.txt`
 - `wolf_2023_final_spatial_block_cv_summary.csv`
 - `wolf_2023_annualization_weights.csv`
 - `wolf_2023_final_event_frequency_mean.png`
@@ -70,7 +70,7 @@ Key files:
 - `wolf_2024_prior_sensitivity.csv`
 - `wolf_2024_MESH_SENSITIVITY_REPORT.txt`
 - `wolf_2024_mesh_sensitivity.csv`
-- `wolf_2024_zinb_spatial_month_temporal_regular_time_lag_correlation.csv`
+- `wolf_2024_zinb_spatial_month_TEMPORAL_AUTOCORRELATION_REPORT.txt`
 - `wolf_2024_final_spatial_block_cv_summary.csv`
 - `wolf_2024_annualization_weights.csv`
 - `wolf_2024_final_event_frequency_mean.png`

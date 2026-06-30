@@ -33,9 +33,6 @@ Temporal residual autocorrelation diagnostics:
   Month is included as a fixed effect; these diagnostics check residual temporal structure after that adjustment.
   Within-camera lag-1 residual correlation: r = -0.178, p = 0.002667, n pairs = 284, median gap = 12.7 days
   Date-ordered mean residual ACF, lag 1: 0.254
-  Regular 7-day lag-1 residual correlation: r = -0.153, p = 0.1169, n pairs = 106
-  Regular 14-day lag-1 residual correlation: r = -0.134, p = 0.09984, n pairs = 153
-  Note: within-camera deployment-order lags are not equal-time lags; regular weekly/biweekly checks are the formal follow-up.
 
 Temporal bin model sensitivity: not run
 

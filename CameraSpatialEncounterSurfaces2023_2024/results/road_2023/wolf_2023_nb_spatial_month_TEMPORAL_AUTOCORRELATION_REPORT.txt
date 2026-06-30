@@ -9,10 +9,3 @@ The month fixed effect already adjusts the mean by calendar camera-month; these 
 
 Within-camera lag-1 residual correlation: r = 0.018, p = 0.7106, n pairs = 430, cameras = 60, median gap = 13.4 days.
 Date-ordered ACF of mean residuals: lag-1 ACF = -0.157.
-Regular-time same-camera checks:
-  7-day bins: lag-1 r = -0.072, p = 0.573, n pairs = 63, cameras = 28.
-  14-day bins: lag-1 r = -0.046, p = 0.4115, n pairs = 316, cameras = 60.
-
-Important interpretation note:
-Within-camera lags are deployment-order lags and may have unequal time gaps.
-Regular-time checks use exact weekly and biweekly camera-time bins and are the formal follow-up for this survey design.
