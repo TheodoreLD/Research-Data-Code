@@ -14,14 +14,14 @@ Validation:
   PPC max count pass: TRUE
   Residual Moran's I: -0.042 (p = 0.658)
   Residual Moran pass: TRUE
-  PPC PIT KS p: 0.3658
+  PPC PIT KS p: 0.5196
   Passes required checks: TRUE
 
 Spatial block cross-validation:
-  mean LPD: -0.412
+  mean LPD: -0.408
   RMSE count: 0.45
   RMSE rate /100: 4.04
-  90% coverage: 0.98
+  90% coverage: 0.97
 
 Priors:
   Field range: PC prior, P(range < 1000 m) = 0.50
@@ -31,12 +31,12 @@ Priors:
   Negative-binomial log(size): Gaussian(mean = 0.69, prec = 0.250), SD 2.0
 
 Estimated likelihood hyperparameters:
-  Negative-binomial size mean: 1.904
+  Negative-binomial size mean: 1.909
 
 Temporal structure:
   Month is included as a fixed effect.
-  Reference month for coefficients: 2024-08
-  Prediction-stack baseline month: 2024-08
+  Coefficient-coding baseline month: 2024-08
+  Prediction-stack baseline month used internally: 2024-08
   Final maps are effort-weighted annualized over the sampled 2024 months.
 
 Interpretation:

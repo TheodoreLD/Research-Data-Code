@@ -8,7 +8,7 @@ validation checks, and the outputs needed to reproduce or audit the analysis.
 The analyses model the number of independent wolf event IDs recorded in
 camera-month rows. The statistical approach is Bayesian count modelling with
 INLA-SPDE spatial random fields. Active camera-days are used as an exposure
-term, calendar month is included as a temporal adjustment, and outputs are
+term, calendar month is included as a fixed temporal control, and outputs are
 relative encounter-frequency surfaces expressed as expected wolf events per 100
 camera-days across the sampled survey-year period. The maps should not be
 interpreted as abundance, density, occupancy, or population size.
@@ -35,11 +35,8 @@ location during one calendar month, with:
 - `m_i`: the calendar month assigned to the row.
 
 If a deployment crosses a month boundary, the deployment is split before
-modelling. For example, a camera active from late August into September
-contributes one August row and one September row. August camera-days and August
-events are assigned to the August row; September camera-days and September
-events are assigned to the September row. This keeps event counts and exposure
-aligned before fitting month effects.
+modelling. This keeps event counts and exposure aligned before fitting month
+effects.
 
 The shared linear predictor is:
 
@@ -52,7 +49,7 @@ where:
 - `mu_i` is the expected number of wolf events in camera-month row `i`;
 - `log(E_i)` is an offset for camera effort, so cameras active for more days are
   expected to record more events;
-- `beta_0` is the baseline log encounter rate for the reference month;
+- `beta_0` is the model intercept on the log encounter-rate scale;
 - `gamma[m_i]` is a fixed calendar-month effect used as a temporal control;
 - `u(s_i)` is the spatial INLA-SPDE random field, which estimates a smooth
   spatial surface while allowing nearby camera locations to be correlated.
@@ -80,8 +77,9 @@ the negative-binomial count component.
 The final map target is an effort-weighted annualized survey-year encounter-frequency
 surface. Month remains in the model as a temporal control because residual
 diagnostics indicated temporal structure when time was not handled explicitly.
-The public maps are not intended to represent one selected calendar month. For
-each prediction cell, the mapped daily encounter rate is:
+Month is treated as a fixed effect in the final models. The public maps are not
+intended to represent one selected calendar month. For each prediction cell, the
+mapped daily encounter rate is:
 
 ```text
 lambda_year(s) = sum_m w_m * 100 * exp(beta_0 + gamma[m] + u(s))
@@ -90,13 +88,6 @@ lambda_year(s) = sum_m w_m * 100 * exp(beta_0 + gamma[m] + u(s))
 where `w_m` is the proportion of total sampled camera-days in month `m`. This
 keeps the annual spatial pattern aligned with the months that were actually
 sampled in each camera dataset.
-
-Month is treated as a fixed effect in the final models. A random month effect
-is possible in INLA, for example with `f(month, model = "iid")`, but it was not
-used here because each dataset contains only a small number of sampled months.
-With so few levels, a random-effect variance would be weakly identified and
-would shrink month contrasts toward zero. Fixed month effects are a simpler
-temporal control for these final models.
 
 The mapped central estimate is the posterior mean because the reported target
 is an expected encounter rate. Posterior-SD maps are included as the matching
@@ -139,9 +130,9 @@ Final model:
 - likelihood: negative binomial;
 - spatial component: INLA-SPDE spatial random field;
 - temporal component: calendar-month fixed effects;
-- reference month for coefficients: August 2023;
+- effort component: active camera-days are included as exposure;
 - map target: effort-weighted annualized 2023 surface;
-- effort is split into camera-month rows before fitting.
+- priors: weakly informative Gaussian and PC priors.
 
 ### Forest-Camera 2024 Final Model
 
@@ -154,9 +145,9 @@ Final model:
 - likelihood: negative binomial;
 - spatial component: INLA-SPDE spatial random field;
 - temporal component: calendar-month fixed effects;
-- reference month for coefficients: August 2024;
+- effort component: active camera-days are included as exposure;
 - map target: effort-weighted annualized 2024 surface;
-- spatial range is estimated with a weakly informative PC prior.
+- priors: weakly informative Gaussian and PC priors.
 
 ### Road-Camera 2024 Final Model
 
@@ -169,9 +160,10 @@ Final model:
 - likelihood: zero-inflated negative binomial type 1;
 - spatial component: INLA-SPDE spatial random field;
 - temporal component: calendar-month fixed effects;
-- reference month for coefficients: August 2024;
+- effort component: active camera-days are included as exposure;
 - map target: effort-weighted annualized 2024 surface;
-- effort is split into camera-month rows before fitting.
+- priors: weakly informative Gaussian and PC priors, including a weakly
+  informative zero-inflation prior.
 
 ## Runtime Profiles
 
@@ -215,9 +207,12 @@ diagnostics:
 - posterior predictive camera maximum count: pass;
 - residual Moran's I: `I = -0.008`, `p = 0.638`;
 - row PIT KS p-value: `0.268`;
-- temporal residual diagnostics were evaluated after month adjustment;
-- spatial block cross-validation was completed;
-- mesh sensitivity: final, finer, and coarser mesh variants pass required diagnostics;
+- temporal residual autocorrelation: within-camera lag-1 `r = 0.018`,
+  `p = 0.711`; no evidence of residual autocorrelation;
+- spatial block cross-validation: row 90 percent coverage `0.933`, camera
+  90 percent coverage `0.900`; acceptable;
+- mesh sensitivity: final, finer, and coarser mesh variants pass required
+  diagnostics; WAIC range `1162.97` to `1163.09`;
 - prior sensitivity: retained variants pass required diagnostics.
 
 Model comparison shows ZINB is only marginally lower by WAIC, with low estimated
@@ -237,10 +232,15 @@ diagnostics:
 - posterior predictive total events: pass;
 - posterior predictive zero fraction: pass;
 - posterior predictive maximum camera count: pass;
-- residual Moran's I: `I = -0.041`, `p = 0.656`;
-- PIT KS p-value: `0.952`;
-- spatial block cross-validation was completed;
-- prior sensitivity: all retained variants pass required diagnostics.
+- residual Moran's I: `I = -0.042`, `p = 0.658`;
+- PIT KS p-value: `0.520`;
+- temporal residual autocorrelation: month-level lag-1 ACF `0.146`; acceptable
+  as a low-power supporting check because only seven monthly points are
+  available;
+- spatial block cross-validation: 90 percent coverage `0.972`; acceptable;
+- mesh sensitivity: final, finer, and coarser mesh variants pass required
+  diagnostics; WAIC range `269.40` to `269.55`;
+- prior sensitivity: all 12 variants pass required diagnostics.
 
 The main caveat is low information content: 46 independent wolf events, so
 month and spatial effects have wider uncertainty.
@@ -248,16 +248,21 @@ month and spatial effects have wider uncertainty.
 ### Road-Camera 2024
 
 The corrected zero-inflated negative-binomial spatial-month model passes the
-required diagnostics:
+required posterior-predictive and spatial diagnostics. The residual temporal
+diagnostic is retained as a caution:
 
 - posterior predictive camera total events: pass;
 - posterior predictive camera zero fraction: pass;
 - posterior predictive camera maximum count: pass;
 - residual Moran's I: `I = -0.033`, `p = 0.370`;
 - row PIT KS p-value: `0.118`;
-- temporal residual diagnostics were evaluated after month adjustment;
-- spatial block cross-validation was completed;
-- mesh sensitivity: final, finer, and coarser mesh variants pass required diagnostics;
+- temporal residual autocorrelation: within-camera lag-1 `r = -0.178`,
+  `p = 0.00267`; residual deployment-order temporal structure remains
+  detectable;
+- spatial block cross-validation: row 90 percent coverage `0.962`, camera
+  90 percent coverage `0.933`; acceptable;
+- mesh sensitivity: final, finer, and coarser mesh variants pass required
+  diagnostics; WAIC range `933.43` to `933.67`;
 - prior sensitivity: retained variants are stable and pass required diagnostics.
 
 Model comparison supports the ZINB model:
@@ -277,7 +282,7 @@ Across the final-results folders, the curated outputs include:
 - hyperparameter summaries;
 - month-effect summaries;
 - prior sensitivity reports and tables;
-- mesh sensitivity reports and tables for the road-camera analyses;
+- mesh sensitivity reports and tables for all three analyses;
 - model-comparison report and table for the road-camera models;
 - spatial block cross-validation summaries;
 - temporal residual diagnostics;

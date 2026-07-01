@@ -1,4 +1,4 @@
 stat,observed,sim_median,sim_q025,sim_q975,pass,method
-total_events,46,52,33,84,TRUE,joint_posterior
-zero_fraction,0.5471698113207547,0.5094339622641509,0.3627358490566038,0.6415094339622641,TRUE,joint_posterior
+total_events,46,49,29,85.775,TRUE,joint_posterior
+zero_fraction,0.5471698113207547,0.5094339622641509,0.37735849056603776,0.660377358490566,TRUE,joint_posterior
 max_camera_count,5,6,3,17,TRUE,joint_posterior

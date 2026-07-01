@@ -81,8 +81,5 @@ camera was active. Wolf events are then counted in the month indicated by their
 This is required because the statistical model includes month effects: the wolf
 count for a month must be paired with the camera effort from that same month.
 
-For example, a camera active from late August to early September contributes
-August camera-days to an August row and September camera-days to a September
-row. August wolf events are counted in the August row, and September wolf events
-are counted in the September row. This keeps the count data and the exposure
-data aligned before fitting month effects.
+This keeps the count data and the exposure data aligned before fitting month
+effects.

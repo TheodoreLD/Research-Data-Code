@@ -3086,9 +3086,9 @@ write_validation_report <- function(model_dat, diag, cv, prediction,
     prior_lines_for_report(settings, FINAL_FAMILY),
     "",
     "Temporal structure:",
-    "  Calendar camera-month is included as a fixed effect after splitting effort by month and assigning events by eventStart month.",
-    sprintf("  Reference month for coefficients: %s", MONTH_REFERENCE),
-    sprintf("  Prediction-stack baseline month: %s", MONTH_PREDICTION),
+    "  Calendar camera-month is included as a fixed effect after aligning effort and events by eventStart month.",
+    sprintf("  Coefficient-coding baseline month: %s", MONTH_REFERENCE),
+    sprintf("  Prediction-stack baseline month used internally: %s", MONTH_PREDICTION),
     if (!is.null(annualization)) {
       sprintf("  Map aggregation: effort-weighted annualized 2024 surface; scale factor %.3f.",
               annualization$factor)

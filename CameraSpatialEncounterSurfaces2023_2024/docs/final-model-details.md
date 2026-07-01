@@ -20,9 +20,9 @@ log(mu_i) = log(E_i) + beta_0 + gamma[m_i] + u(s_i)
 ```
 
 where `mu_i` is the expected event count, `E_i` is active camera-days,
-`beta_0` is the baseline log encounter rate, `gamma[m_i]` is the fixed effect
-for calendar month, and `u(s_i)` is the INLA-SPDE spatial random field at the
-camera location.
+`beta_0` is the model intercept on the log encounter-rate scale, `gamma[m_i]`
+is the fixed effect for calendar month, and `u(s_i)` is the INLA-SPDE spatial
+random field at the camera location.
 
 ## Data Units
 
@@ -50,10 +50,7 @@ where `w_m` is the proportion of sampled camera-days in month `m`. This keeps
 month in the model as a temporal control while reporting the spatial pattern
 for the sampled survey-year period as a whole.
 
-Month is treated as a fixed effect. INLA can fit a random month effect, for
-example with `f(month, model = "iid")`, but that was not used because each
-dataset contains only a few sampled months and the aim was direct temporal
-control rather than estimating a month-level variance.
+Month is treated as a fixed effect in the final models.
 
 ## Road-Camera 2023 Model
 
@@ -82,13 +79,13 @@ Key settings:
 - 60 cameras;
 - 586 independent wolf events;
 - 5222.2 camera-days;
-- reference month for coefficients: 2023-08;
+- effort component: active camera-days are included as exposure;
 - map target: effort-weighted annualized 2023 surface;
-- annualization factor relative to the baseline month: 1.117;
+- annualization factor used in map aggregation: 1.117;
 - INLA-SPDE spatial random field;
 - negative-binomial likelihood.
 
-Priors:
+Weakly informative priors:
 
 - intercept: Gaussian centered on crude observed daily rate, SD 2.5 on log
   scale;
@@ -119,11 +116,14 @@ Main diagnostics:
 - residual Moran's I: -0.008, p = 0.638;
 - row PIT KS p-value: 0.268;
 - camera PIT KS p-value: 0.000520;
-- temporal residual diagnostics evaluated after month adjustment;
-- required diagnostics pass: TRUE;
-- spatial block cross-validation: completed;
+- temporal residual autocorrelation: within-camera lag-1 r = 0.018, p = 0.711;
+- date-ordered mean-residual lag-1 ACF: -0.157;
+- required posterior-predictive/spatial diagnostics pass: TRUE;
+- spatial block cross-validation: row 90 percent coverage = 0.933, camera 90
+  percent coverage = 0.900;
 - prior sensitivity: retained variants pass required diagnostics;
-- mesh sensitivity: final, finer, and coarser mesh variants pass required diagnostics.
+- mesh sensitivity: final, finer, and coarser mesh variants pass required
+  diagnostics; WAIC range = 1162.97 to 1163.09.
 
 ## Forest-Camera 2024 Model
 
@@ -152,12 +152,12 @@ Key settings:
 - 53 cameras;
 - 46 independent wolf events;
 - 4423.0 camera-days;
-- reference month for coefficients: 2024-08;
+- effort component: active camera-days are included as exposure;
 - map target: effort-weighted annualized 2024 surface;
 - INLA-SPDE spatial random field;
 - negative-binomial likelihood.
 
-Priors:
+Weakly informative priors:
 
 - intercept: Gaussian centered on crude observed daily rate, SD 2.5 on log
   scale;
@@ -171,13 +171,16 @@ Main diagnostics:
 - posterior predictive total events: pass;
 - posterior predictive zero fraction: pass;
 - posterior predictive maximum camera count: pass;
-- row Pearson dispersion: 0.550;
-- camera Pearson dispersion: 0.567;
-- residual Moran's I: -0.041, p = 0.656;
-- PIT KS p-value: 0.952;
-- required diagnostics pass: TRUE;
-- spatial block cross-validation: completed;
-- prior sensitivity: all retained variants pass required diagnostics.
+- row Pearson dispersion: 0.576;
+- camera Pearson dispersion: 0.603;
+- residual Moran's I: -0.042, p = 0.658;
+- PIT KS p-value: 0.520;
+- temporal residual autocorrelation: month-level lag-1 ACF = 0.146;
+- required posterior-predictive/spatial diagnostics pass: TRUE;
+- spatial block cross-validation: 90 percent coverage = 0.972;
+- prior sensitivity: all 12 variants pass required diagnostics;
+- mesh sensitivity: final, finer, and coarser mesh variants pass required
+  diagnostics; WAIC range = 269.40 to 269.55.
 
 Main limitation:
 
@@ -217,12 +220,12 @@ Key settings:
 - 60 cameras;
 - 479 independent wolf events;
 - 3574.0 camera-days;
-- reference month for coefficients: 2024-08;
+- effort component: active camera-days are included as exposure;
 - map target: effort-weighted annualized 2024 surface;
 - INLA-SPDE spatial random field;
 - zero-inflated negative-binomial type 1 likelihood.
 
-Priors:
+Weakly informative priors:
 
 - intercept: Gaussian centered on crude observed daily rate, SD 2.5 on log
   scale;
@@ -251,18 +254,22 @@ Main diagnostics:
 - residual Moran's I: -0.033, p = 0.370;
 - row PIT KS p-value: 0.118;
 - camera PIT KS p-value: 0.000492;
-- required diagnostics pass: TRUE;
-- temporal residual diagnostics evaluated after month adjustment;
-- spatial block cross-validation: completed;
+- required posterior-predictive/spatial diagnostics pass: TRUE;
+- temporal residual autocorrelation: within-camera lag-1 r = -0.178,
+  p = 0.00267; residual deployment-order temporal structure remains detectable;
+- date-ordered mean-residual lag-1 ACF: 0.254;
+- spatial block cross-validation: row 90 percent coverage = 0.962, camera 90
+  percent coverage = 0.933;
 - prior sensitivity: retained variants are stable and pass required diagnostics;
-- mesh sensitivity: final, finer, and coarser mesh variants pass required diagnostics.
+- mesh sensitivity: final, finer, and coarser mesh variants pass required
+  diagnostics; WAIC range = 933.43 to 933.67.
 
 ## Final Interpretation
 
 All three models are final for relative encounter-frequency mapping. The
 road-camera 2023 model passes diagnostics after the camera-month temporal
 correction and is retained as a parsimonious NB model. The forest-camera 2024
-model passes diagnostics and prior sensitivity checks. The road-camera 2024
-model passes diagnostics after the camera-month temporal correction, prior
-sensitivity, mesh sensitivity, spatial block cross-validation, and temporal
-residual diagnostics.
+model passes diagnostics, prior sensitivity, mesh sensitivity, and spatial block
+cross-validation. The road-camera 2024 model passes the posterior-predictive,
+spatial, prior, mesh, and spatial block cross-validation checks; its significant
+within-camera lag-1 residual correlation is retained as a temporal caution.

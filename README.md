@@ -4,9 +4,9 @@ This repository contains a 2023-2024 camera-trap modelling project focused on
 the spatial pattern of wolf relative encounter frequency. The analyses model
 independent wolf detections recorded by camera traps using Bayesian count models
 with INLA-SPDE spatial random fields. Active camera-days are used as exposure,
-calendar month is included as a temporal control, and outputs are relative
-encounter-frequency surfaces expressed as expected independent wolf events per
-100 camera-days across the sampled survey-year period.
+calendar month is included as a fixed temporal control, and outputs are
+relative encounter-frequency surfaces expressed as expected independent wolf
+events per 100 camera-days across the sampled survey-year period.
 
 ## Project
 

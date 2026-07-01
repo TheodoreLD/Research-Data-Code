@@ -8,16 +8,16 @@ Summary:
   Variants fitted: 12
   Variants passing required diagnostics: 12 / 12
   Failed variants: none
-  WAIC range: 268.71 to 276.35
+  WAIC range: 268.72 to 276.35
   Spatial SD posterior mean range: 0.651 to 0.877
   NB size posterior mean range: 0.616 to 2.294
 
 Best WAIC variants:
-  month_sd_0_5: WAIC 268.71, diagnostics_ok=TRUE, Moran p 0.684, NB size 1.816, spatial SD 0.813
-  spatial_sd_wider: WAIC 268.86, diagnostics_ok=TRUE, Moran p 0.758, NB size 2.052, spatial SD 0.877
-  nb_size_median_3: WAIC 269.43, diagnostics_ok=TRUE, Moran p 0.730, NB size 2.294, spatial SD 0.826
-  final_current: WAIC 269.45, diagnostics_ok=TRUE, Moran p 0.686, NB size 1.904, spatial SD 0.819
-  fixed_range_500: WAIC 269.57, diagnostics_ok=TRUE, Moran p 0.684, NB size 1.981, spatial SD 0.821
+  month_sd_0_5: WAIC 268.72, diagnostics_ok=TRUE, Moran p 0.670, NB size 1.818, spatial SD 0.813
+  spatial_sd_wider: WAIC 268.86, diagnostics_ok=TRUE, Moran p 0.746, NB size 2.053, spatial SD 0.877
+  nb_size_median_3: WAIC 269.43, diagnostics_ok=TRUE, Moran p 0.732, NB size 2.294, spatial SD 0.826
+  final_current: WAIC 269.45, diagnostics_ok=TRUE, Moran p 0.710, NB size 1.904, spatial SD 0.819
+  fixed_range_500: WAIC 269.57, diagnostics_ok=TRUE, Moran p 0.688, NB size 1.981, spatial SD 0.821
 
 Interpretation:
   Stable diagnostics across variants support the prior choices.

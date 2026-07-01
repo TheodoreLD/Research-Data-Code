@@ -45,9 +45,9 @@ Priors:
   Negative-binomial log(size): Gaussian(mean = 0.69, prec = 0.250), SD 2.0
 
 Temporal structure:
-  Calendar camera-month is included as a fixed effect after splitting effort by month and assigning events by eventStart month.
-  Reference month for coefficients: 2024-08
-  Prediction-stack baseline month: 2024-08
+  Calendar camera-month is included as a fixed effect after aligning effort and events by eventStart month.
+  Coefficient-coding baseline month: 2024-08
+  Prediction-stack baseline month used internally: 2024-08
   Map aggregation: effort-weighted annualized 2024 surface; scale factor 1.195.
 
 Prediction:

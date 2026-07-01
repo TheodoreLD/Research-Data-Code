@@ -1,0 +1,20 @@
+Mesh sensitivity for forest-camera 2024 month-adjusted NB spatial model
+
+Purpose:
+  Check whether the selected spatial surface and fit diagnostics are stable under finer and coarser SPDE meshes.
+
+Summary:
+  Variants fitted: 3
+  Variants passing required diagnostics: 3 / 3
+  Failed variants: none
+  WAIC range: 269.40 to 269.55
+  Spatial range posterior mean range: 592.6 m to 618.2 m
+  Spatial SD posterior mean range: 0.815 to 0.880
+
+Mesh variants:
+  current: WAIC 269.45, delta WAIC 0.05, diagnostics_ok=TRUE, vertices=2493, Moran p 0.696
+  finer: WAIC 269.40, delta WAIC 0.00, diagnostics_ok=TRUE, vertices=4221, Moran p 0.708
+  coarser: WAIC 269.55, delta WAIC 0.14, diagnostics_ok=TRUE, vertices=1470, Moran p 0.786
+
+Interpretation:
+  Similar diagnostics and information criteria across mesh variants support mesh robustness for the forest-camera model.

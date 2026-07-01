@@ -1,8 +1,8 @@
 Forest-camera 2024 month-refit summary
 
 Model: nb_spatial_month (family = nbinomial)
-Reference month: 2024-08
-Prediction-stack baseline month: 2024-08
+Coefficient-coding baseline month: 2024-08
+Prediction-stack baseline month used internally: 2024-08
 Map target: effort-weighted annualized 2024 encounter-frequency surface
 Rows: 356 camera-month rows at 53 cameras
 Events: 46 | effort: 4423.0 camera-days | observed mean 1.040 /100
@@ -16,23 +16,23 @@ Validation:
   PPC max count pass: TRUE
   Residual Moran's I: -0.042; p = 0.658
   Required diagnostics pass: TRUE
-  NB size posterior mean: 1.904
+  NB size posterior mean: 1.909
 
 Temporal residual check:
   Month-level Pearson residual lag-1 ACF: 0.146
   Interpret cautiously because only seven monthly points are available.
 
 Interpretation:
-  Month fixed effects adjust for camera-month exposure; effort is split across months and wolf events are assigned by eventStart month.
+  Month fixed effects align camera effort and wolf events by eventStart month.
   Prediction maps represent the effort-weighted annualized 2024 relative encounter-frequency surface, not one calendar month.
-  The June 2024 setting is only the baseline used to build the prediction stack and express month-rate ratios.
+  The prediction-stack baseline is internal coefficient coding and does not define the mapped period.
   Outputs remain relative encounter frequency, not abundance, density, occupancy, or population size.
 
 Spatial block cross-validation:
-  mean LPD: -0.412
+  mean LPD: -0.408
   RMSE count: 0.45
   RMSE rate /100: 4.04
-  90% coverage: 0.98
+  90% coverage: 0.97
 
 Month coefficients:
   2024-03 vs 2024-08: mean RR 0.34 (95% interval 0.08 to 1.47)

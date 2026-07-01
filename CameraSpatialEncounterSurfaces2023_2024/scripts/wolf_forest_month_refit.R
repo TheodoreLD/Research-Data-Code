@@ -332,8 +332,8 @@ write_month_refit_summary <- function(cfg, spec, fit, cv, temporal_diag) {
     "Forest-camera 2024 month-refit summary",
     "",
     sprintf("Model: %s (family = %s)", spec$name, spec$family),
-    sprintf("Reference month: %s", cfg$settings$month_reference),
-    sprintf("Prediction-stack baseline month: %s", cfg$settings$month_prediction),
+    sprintf("Coefficient-coding baseline month: %s", cfg$settings$month_reference),
+    sprintf("Prediction-stack baseline month used internally: %s", cfg$settings$month_prediction),
     "Map target: effort-weighted annualized 2024 encounter-frequency surface",
     sprintf("Rows: %d camera-month rows at %d cameras",
             nrow(fit$final$model_dat),
@@ -367,9 +367,9 @@ write_month_refit_summary <- function(cfg, spec, fit, cv, temporal_diag) {
     "  Interpret cautiously because only seven monthly points are available.",
     "",
     "Interpretation:",
-    "  Month fixed effects adjust for camera-month exposure; effort is split across months and wolf events are assigned by eventStart month.",
+    "  Month fixed effects align camera effort and wolf events by eventStart month.",
     "  Prediction maps represent the effort-weighted annualized 2024 relative encounter-frequency surface, not one calendar month.",
-    "  The June 2024 setting is only the baseline used to build the prediction stack and express month-rate ratios.",
+    "  The prediction-stack baseline is internal coefficient coding and does not define the mapped period.",
     "  Outputs remain relative encounter frequency, not abundance, density, occupancy, or population size."
   )
 
@@ -771,8 +771,168 @@ write_prior_sensitivity_report <- function(out, prefix) {
   invisible(lines)
 }
 
+mesh_settings_variants <- function(settings) {
+  list(
+    current = settings,
+    finer = modify_settings(settings, list(
+      mesh_cutoff_m = max(50, settings$mesh_cutoff_m * 0.70),
+      mesh_max_edge = pmax(50, settings$mesh_max_edge * 0.70),
+      mesh_offset = pmax(500, settings$mesh_offset * 0.80)
+    )),
+    coarser = modify_settings(settings, list(
+      mesh_cutoff_m = settings$mesh_cutoff_m * 1.45,
+      mesh_max_edge = settings$mesh_max_edge * 1.45,
+      mesh_offset = settings$mesh_offset * 1.20
+    ))
+  )
+}
+
+summarise_mesh_fit <- function(variant, note, settings, fit_obj, spec) {
+  fit <- fit_obj$fit
+  diag <- fit_obj$diag
+
+  data.frame(
+    mesh_variant = variant,
+    note = note,
+    model = spec$name,
+    family = spec$family,
+    dic = scalar_or_na(fit$dic$dic),
+    p_dic = scalar_or_na(fit$dic$p.eff),
+    waic = scalar_or_na(fit$waic$waic),
+    p_waic = scalar_or_na(fit$waic$p.eff),
+    marginal_loglik = scalar_or_na(fit$mlik[1]),
+    cpo_failure_rate = if (!is.null(fit$cpo$failure)) {
+      mean(fit$cpo$failure, na.rm = TRUE)
+    } else {
+      NA_real_
+    },
+    diagnostics_ok = isTRUE(diag$diagnostics_ok),
+    ppc_total_pass = isTRUE(diag$ppc_total_pass),
+    ppc_zero_pass = isTRUE(diag$ppc_zero_pass),
+    ppc_max_pass = isTRUE(diag$ppc_max_pass),
+    moran_p = diag$moran_p,
+    pearson_disp = diag$pearson_disp,
+    pearson_disp_camera = diag$pearson_disp_camera,
+    ppc_pit_ks = diag$ppc_pit_ks,
+    nb_size_mean = diag$size_hat,
+    spatial_range_mean_m = hyp_point(fit, PAT_RANGE),
+    spatial_sd_mean = hyp_point(fit, PAT_SIGMA),
+    mesh_vertices = fit_obj$mesh_vertices,
+    mesh_cutoff_m = settings$mesh_cutoff_m,
+    mesh_max_edge_inner_m = settings$mesh_max_edge[[1]],
+    mesh_max_edge_outer_m = settings$mesh_max_edge[[2]],
+    mesh_offset_inner_m = settings$mesh_offset[[1]],
+    mesh_offset_outer_m = settings$mesh_offset[[2]],
+    stringsAsFactors = FALSE
+  )
+}
+
+run_mesh_sensitivity <- function(camera_rate, base_settings, spec, prefix) {
+  cat(sprintf("\n[%s] mesh sensitivity for month-adjusted model\n", prefix))
+
+  variants <- mesh_settings_variants(base_settings)
+  notes <- c(
+    current = "current final mesh",
+    finer = "finer SPDE mesh",
+    coarser = "coarser SPDE mesh"
+  )
+
+  rows <- list()
+  for (nm in names(variants)) {
+    cat(sprintf("[%s]   mesh variant: %s\n", prefix, nm))
+    fit_obj <- fit_prior_sensitivity_model(
+      camera_rate,
+      variants[[nm]],
+      spec,
+      paste(prefix, "mesh", nm, sep = "_")
+    )
+    rows[[length(rows) + 1L]] <- summarise_mesh_fit(
+      nm,
+      notes[[nm]],
+      variants[[nm]],
+      fit_obj,
+      spec
+    )
+  }
+
+  out <- dplyr::bind_rows(rows)
+  if (any(is.finite(out$waic))) {
+    out$delta_waic <- out$waic - min(out$waic, na.rm = TRUE)
+  } else {
+    out$delta_waic <- NA_real_
+  }
+  if (any(is.finite(out$dic))) {
+    out$delta_dic <- out$dic - min(out$dic, na.rm = TRUE)
+  } else {
+    out$delta_dic <- NA_real_
+  }
+
+  readr::write_csv(out, path_out(paste0(prefix, "_mesh_sensitivity.csv")))
+  write_mesh_sensitivity_report(out, prefix)
+  invisible(out)
+}
+
+write_mesh_sensitivity_report <- function(out, prefix) {
+  failed <- out$mesh_variant[!out$diagnostics_ok]
+  finite_waic <- out$waic[is.finite(out$waic)]
+  finite_range <- out$spatial_range_mean_m[is.finite(out$spatial_range_mean_m)]
+  finite_sd <- out$spatial_sd_mean[is.finite(out$spatial_sd_mean)]
+
+  lines <- c(
+    "Mesh sensitivity for forest-camera 2024 month-adjusted NB spatial model",
+    "",
+    "Purpose:",
+    "  Check whether the selected spatial surface and fit diagnostics are stable under finer and coarser SPDE meshes.",
+    "",
+    "Summary:",
+    sprintf("  Variants fitted: %d", nrow(out)),
+    sprintf("  Variants passing required diagnostics: %d / %d",
+            sum(out$diagnostics_ok, na.rm = TRUE), nrow(out)),
+    if (length(failed)) {
+      sprintf("  Failed variants: %s", paste(failed, collapse = ", "))
+    } else {
+      "  Failed variants: none"
+    },
+    if (length(finite_waic)) {
+      sprintf("  WAIC range: %.2f to %.2f", min(finite_waic), max(finite_waic))
+    } else {
+      "  WAIC range: not available"
+    },
+    if (length(finite_range)) {
+      sprintf("  Spatial range posterior mean range: %.1f m to %.1f m",
+              min(finite_range), max(finite_range))
+    } else {
+      "  Spatial range posterior mean range: not available"
+    },
+    if (length(finite_sd)) {
+      sprintf("  Spatial SD posterior mean range: %.3f to %.3f",
+              min(finite_sd), max(finite_sd))
+    } else {
+      "  Spatial SD posterior mean range: not available"
+    },
+    "",
+    "Mesh variants:",
+    apply(out, 1, function(x) {
+      sprintf("  %s: WAIC %.2f, delta WAIC %.2f, diagnostics_ok=%s, vertices=%s, Moran p %.3f",
+              x[["mesh_variant"]],
+              as.numeric(x[["waic"]]),
+              as.numeric(x[["delta_waic"]]),
+              x[["diagnostics_ok"]],
+              x[["mesh_vertices"]],
+              as.numeric(x[["moran_p"]]))
+    }),
+    "",
+    "Interpretation:",
+    "  Similar diagnostics and information criteria across mesh variants support mesh robustness for the forest-camera model."
+  )
+
+  writeLines(lines, path_out(paste0(prefix, "_MESH_SENSITIVITY_REPORT.txt")))
+  invisible(lines)
+}
+
 write_full_final_model_report <- function(cfg, spec, result, cv,
-                                          temporal_diag, prior_sensitivity) {
+                                          temporal_diag, prior_sensitivity,
+                                          mesh_sensitivity) {
   prefix <- cfg$prefix
   fit_obj <- result$final
   diag <- fit_obj$diag
@@ -864,6 +1024,28 @@ write_full_final_model_report <- function(cfg, spec, result, cv,
             max(prior_sensitivity$spatial_sd_mean, na.rm = TRUE))
   )
 
+  mesh_failed <- mesh_sensitivity$mesh_variant[!mesh_sensitivity$diagnostics_ok]
+  mesh_lines <- c(
+    sprintf("  Mesh variants fitted: %d", nrow(mesh_sensitivity)),
+    sprintf("  Variants passing required diagnostics: %d / %d",
+            sum(mesh_sensitivity$diagnostics_ok, na.rm = TRUE),
+            nrow(mesh_sensitivity)),
+    if (length(mesh_failed)) {
+      sprintf("  Failed mesh variants: %s", paste(mesh_failed, collapse = ", "))
+    } else {
+      "  Failed mesh variants: none"
+    },
+    sprintf("  WAIC range across meshes: %.2f to %.2f",
+            min(mesh_sensitivity$waic, na.rm = TRUE),
+            max(mesh_sensitivity$waic, na.rm = TRUE)),
+    sprintf("  Spatial range posterior mean range: %.1f m to %.1f m",
+            min(mesh_sensitivity$spatial_range_mean_m, na.rm = TRUE),
+            max(mesh_sensitivity$spatial_range_mean_m, na.rm = TRUE)),
+    sprintf("  Spatial SD posterior mean range: %.3f to %.3f",
+            min(mesh_sensitivity$spatial_sd_mean, na.rm = TRUE),
+            max(mesh_sensitivity$spatial_sd_mean, na.rm = TRUE))
+  )
+
   lines <- c(
     "FULL FINAL MODEL REPORT",
     "Forest-camera 2024 wolf relative encounter-frequency model",
@@ -873,10 +1055,10 @@ write_full_final_model_report <- function(cfg, spec, result, cv,
     sprintf("  Likelihood: %s", spec$family),
     "  Spatial structure: INLA-SPDE spatial random field.",
     "  Temporal structure: calendar camera-month fixed effects.",
-    sprintf("  Reference month: %s", cfg$settings$month_reference),
-    sprintf("  Prediction-stack baseline month: %s", cfg$settings$month_prediction),
+    "  Effort structure: active camera-days are included as exposure.",
     "  Map target: effort-weighted annualized 2024 encounter-frequency surface.",
     "  Prediction units: expected independent wolf events per 100 camera-days.",
+    "  Priors: weakly informative Gaussian and PC priors.",
     "",
     "2. Data represented in the model",
     sprintf("  Cameras: %d", dplyr::n_distinct(model_dat$plotID)),
@@ -924,13 +1106,17 @@ write_full_final_model_report <- function(cfg, spec, result, cv,
     "10. Prior sensitivity",
     prior_lines,
     "",
-    "11. Final assessment",
+    "11. Mesh sensitivity",
+    mesh_lines,
+    "",
+    "12. Final assessment",
     "  The final estimated-range month-adjusted NB spatial model passes the required diagnostics.",
     "  Prior sensitivity supports the prior choices: all tested variants pass required diagnostics.",
+    "  Mesh sensitivity supports the selected SPDE mesh: all tested variants pass required diagnostics.",
     "  The estimated spatial range prior removes the earlier fixed-range modelling assumption while retaining regularisation.",
     "  The output should be interpreted as relative encounter frequency, not abundance, density, occupancy, or population size.",
     "",
-    "12. Main limitations",
+    "13. Main limitations",
     "  The data contain only 46 independent wolf events, so month and spatial effects have wide uncertainty.",
     "  Detection probability, camera placement, habitat, roads, prey, and human disturbance are not modelled explicitly.",
     "  The temporal ACF check has low power because only seven monthly time points are available.",
@@ -1004,8 +1190,11 @@ result <- list(
 write_run_manifest(list(forest_month = result))
 write_month_refit_summary(cfg, spec, result, cv, temporal_diag)
 prior_sensitivity <- run_prior_sensitivity(camera_rate, settings, spec, prefix)
-write_full_final_model_report(cfg, spec, result, cv, temporal_diag, prior_sensitivity)
+mesh_sensitivity <- run_mesh_sensitivity(camera_rate, settings, spec, prefix)
+write_full_final_model_report(cfg, spec, result, cv, temporal_diag,
+                              prior_sensitivity, mesh_sensitivity)
 
 cat("\nMonth refit completed successfully.\n")
 cat("Outputs are in:\n  ", OUTPUT_DIR, "\n", sep = "")
 cat("Prior sensitivity variants fitted: ", nrow(prior_sensitivity), "\n", sep = "")
+cat("Mesh sensitivity variants fitted: ", nrow(mesh_sensitivity), "\n", sep = "")

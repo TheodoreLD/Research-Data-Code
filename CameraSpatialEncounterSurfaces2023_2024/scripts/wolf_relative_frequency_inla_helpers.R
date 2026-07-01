@@ -650,7 +650,7 @@ write_prior_posterior_plots <- function(fit, settings, spec, prefix) {
   )
 
   # Month fixed effects: Gaussian priors on log-rate ratios relative to the
-  # configured reference month.
+  # configured coefficient-coding baseline month.
   month_terms <- grep("^month_[0-9]{4}_[0-9]{2}$",
                       names(fit$marginals.fixed),
                       value = TRUE)
@@ -2331,8 +2331,8 @@ temporal_lines_for_report <- function(settings) {
     "",
     "Temporal structure:",
     "  Month is included as a fixed effect.",
-    sprintf("  Reference month for coefficients: %s", settings$month_reference),
-    sprintf("  Prediction-stack baseline month: %s", settings$month_prediction),
+    sprintf("  Coefficient-coding baseline month: %s", settings$month_reference),
+    sprintf("  Prediction-stack baseline month used internally: %s", settings$month_prediction),
     "  Final maps are effort-weighted annualized over the sampled 2024 months."
   )
 }
