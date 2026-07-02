@@ -2678,7 +2678,7 @@ write_validation_report <- function(prefix, cfg, spec, camera_rate, diag, cv,
     if (!is.null(cfg$caveat)) sprintf("Temporal note: %s", cfg$caveat) else NULL
   )
 
-  writeLines(report, path_out(paste0(prefix, "_VALIDATION_REPORT.txt")))
+  writeLines(report, path_out(paste0(prefix, "_validation_report.txt")))
   invisible(report)
 }
 
@@ -2866,7 +2866,7 @@ manifest <- write_run_manifest(results)
 cat("\nAll requested surveys completed successfully.\n")
 cat("Final outputs are in:\n  ", OUTPUT_DIR, "\n", sep = "")
 cat("Key files per survey:\n")
-cat("  wolf_*_VALIDATION_REPORT.txt              (model, diagnostic status, priors, CV)\n")
+cat("  wolf_*_validation_report.txt              (model, diagnostic status, priors, CV)\n")
 cat("  wolf_*_final_predicted_events_per_100_days_mean.tif / _sd.tif\n")
 cat("  wolf_*_final_event_frequency_mean.png / _sd.png\n")
 cat("  wolf_*_*_posterior_predictive_check.csv, _diag_*.png\n")

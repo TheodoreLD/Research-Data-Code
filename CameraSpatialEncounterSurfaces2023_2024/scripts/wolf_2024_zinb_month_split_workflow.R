@@ -1588,7 +1588,7 @@ temporal_autocorrelation_diagnostics <- function(model_dat,
   writeLines(
     report,
     path_out(paste0(prefix, "_", final_model,
-                    "_TEMPORAL_AUTOCORRELATION_REPORT.txt"))
+                    "_temporal_autocorrelation_report.txt"))
   )
 
   list(
@@ -3132,7 +3132,7 @@ write_validation_report <- function(model_dat, diag, cv, prediction,
     "  Spatial surface is month-adjusted and annualized over the sampled 2024 months."
   )
 
-  writeLines(report, path_out(paste0(SURVEY_PREFIX, "_VALIDATION_REPORT.txt")))
+  writeLines(report, path_out(paste0(SURVEY_PREFIX, "_validation_report.txt")))
   invisible(report)
 }
 
@@ -3353,7 +3353,7 @@ run_model_comparison <- function(model_dat, settings) {
     if (nrow(out)) capture.output(print(out, row.names = FALSE)) else "  No comparison models completed.",
     if (length(failures)) c("", "Failures:", paste0("  ", failures)) else NULL
   )
-  writeLines(report, path_out(paste0(SURVEY_PREFIX, "_MODEL_COMPARISON_REPORT.txt")))
+  writeLines(report, path_out(paste0(SURVEY_PREFIX, "_model_comparison_report.txt")))
   invisible(out)
 }
 
@@ -3419,7 +3419,7 @@ run_mesh_sensitivity <- function(model_dat, settings, family) {
     if (nrow(out)) capture.output(print(out, row.names = FALSE)) else "  No mesh variants completed.",
     if (length(failures)) c("", "Failures:", paste0("  ", failures)) else NULL
   )
-  writeLines(report, path_out(paste0(SURVEY_PREFIX, "_MESH_SENSITIVITY_REPORT.txt")))
+  writeLines(report, path_out(paste0(SURVEY_PREFIX, "_mesh_sensitivity_report.txt")))
   invisible(out)
 }
 
@@ -3700,7 +3700,7 @@ write_model_choice_report <- function(model_comparison) {
     lines <- c(lines, "", "Model comparison was skipped or failed, so the configured final model remains a prior decision.")
   }
 
-  writeLines(lines, path_out(paste0(SURVEY_PREFIX, "_MODEL_CHOICE_REPORT.txt")))
+  writeLines(lines, path_out(paste0(SURVEY_PREFIX, "_model_choice_report.txt")))
   invisible(lines)
 }
 
@@ -3856,7 +3856,7 @@ run_prior_sensitivity <- function(model_dat, settings, family, observed_daily_ra
     if (nrow(out)) capture.output(print(out, row.names = FALSE)) else "  No prior-sensitivity variants completed.",
     if (length(failures)) c("", "Failures:", paste0("  ", failures)) else NULL
   )
-  writeLines(report, path_out(paste0(SURVEY_PREFIX, "_PRIOR_SENSITIVITY_REPORT.txt")))
+  writeLines(report, path_out(paste0(SURVEY_PREFIX, "_prior_sensitivity_report.txt")))
   invisible(out)
 }
 
@@ -3919,7 +3919,7 @@ write_science_checks_summary_ordered <- function(model_comparison, prior_influen
     "Interpretation reminder:",
     "  These models estimate relative encounter frequency only."
   )
-  writeLines(lines, path_out(paste0(SURVEY_PREFIX, "_SCIENCE_CHECKS_SUMMARY.txt")))
+  writeLines(lines, path_out(paste0(SURVEY_PREFIX, "_science_checks_summary.txt")))
   invisible(lines)
 }
 
@@ -4082,12 +4082,12 @@ cat("Final outputs are in:\n  ", OUTPUT_DIR, "\n", sep = "")
 cat("Key files:\n")
 cat("  wolf_2024_ORDERED_WORKFLOW.txt\n")
 cat("  wolf_2024_EXPLORATORY_REPORT.txt\n")
-cat("  wolf_2024_MODEL_CHOICE_REPORT.txt\n")
-cat("  wolf_2024_VALIDATION_REPORT.txt\n")
-cat("  wolf_2024_SCIENCE_CHECKS_SUMMARY.txt\n")
-cat("  wolf_2024_model_comparison.csv / wolf_2024_MODEL_COMPARISON_REPORT.txt\n")
-cat("  wolf_2024_prior_sensitivity.csv / wolf_2024_PRIOR_SENSITIVITY_REPORT.txt\n")
-cat("  wolf_2024_mesh_sensitivity.csv / wolf_2024_MESH_SENSITIVITY_REPORT.txt\n")
+cat("  wolf_2024_model_choice_report.txt\n")
+cat("  wolf_2024_validation_report.txt\n")
+cat("  wolf_2024_science_checks_summary.txt\n")
+cat("  wolf_2024_model_comparison.csv / wolf_2024_model_comparison_report.txt\n")
+cat("  wolf_2024_prior_sensitivity.csv / wolf_2024_prior_sensitivity_report.txt\n")
+cat("  wolf_2024_mesh_sensitivity.csv / wolf_2024_mesh_sensitivity_report.txt\n")
 cat("  wolf_2024_final_predicted_events_per_100_days_mean.tif / _sd.tif\n")
 cat("  wolf_2024_final_event_frequency_mean.png / _sd.png\n")
 cat("  wolf_2024_zinb_spatial_month_posterior_predictive_check.csv\n")
@@ -4098,7 +4098,7 @@ cat("  wolf_2024_prior_posterior_*.png / .csv\n")
 cat("  wolf_2024_hyperparameters.csv\n")
 cat("  wolf_2024_month_coefficients.csv\n")
 cat("  wolf_2024_month_observed_summary.csv\n")
-cat("  wolf_2024_zinb_spatial_month_TEMPORAL_AUTOCORRELATION_REPORT.txt\n")
+cat("  wolf_2024_zinb_spatial_month_temporal_autocorrelation_report.txt\n")
 cat("  wolf_2024_zinb_spatial_month_temporal_within_camera_lag_correlation.csv\n")
 cat("  wolf_2024_final_spatial_block_cv_summary.csv, if CV was run\n")
 cat("  wolf_2024_run_manifest.csv\n")

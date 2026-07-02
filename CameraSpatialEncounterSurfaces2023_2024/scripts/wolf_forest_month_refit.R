@@ -430,7 +430,7 @@ write_temporal_residual_diagnostic <- function(diag, prefix, model_name) {
     "  Month fixed effects are the primary temporal adjustment in this refit."
   )
   writeLines(note, path_out(paste0(prefix, "_", model_name,
-                                   "_TEMPORAL_AUTOCORRELATION_REPORT.txt")))
+                                   "_temporal_autocorrelation_report.txt")))
   invisible(month_diag)
 }
 
@@ -796,7 +796,7 @@ write_prior_sensitivity_report <- function(out, prefix) {
     "  If maps are used for publication, cite the estimated range prior and this sensitivity table together."
   )
 
-  writeLines(lines, path_out(paste0(prefix, "_PRIOR_SENSITIVITY_REPORT.txt")))
+  writeLines(lines, path_out(paste0(prefix, "_prior_sensitivity_report.txt")))
   invisible(lines)
 }
 
@@ -955,7 +955,7 @@ write_mesh_sensitivity_report <- function(out, prefix) {
     "  Similar diagnostics and information criteria across mesh variants support mesh robustness for the forest-camera model."
   )
 
-  writeLines(lines, path_out(paste0(prefix, "_MESH_SENSITIVITY_REPORT.txt")))
+  writeLines(lines, path_out(paste0(prefix, "_mesh_sensitivity_report.txt")))
   invisible(lines)
 }
 
@@ -1174,7 +1174,7 @@ write_full_final_model_report <- function(cfg, spec, result, cv,
     "  Predictions should not be interpreted far outside the sampled camera domain."
   )
 
-  writeLines(lines, path_out(paste0(prefix, "_FULL_FINAL_MODEL_REPORT.txt")))
+  writeLines(lines, path_out(paste0(prefix, "_full_final_model_report.txt")))
   invisible(lines)
 }
 

@@ -1,21 +1,25 @@
 # Final Model Details
 
-This note gives a compact technical description of the three final 2023-2024
-wolf relative encounter-frequency models. All numbers below are from a
-`WOLF_RUN_PROFILE=final` rerun of the three scripts against the private
+This note is the technical reference for the three final 2023-2024 wolf
+relative encounter-frequency models: full methodology, priors, and complete
+diagnostic numbers. `README.md` gives the short summary and points here for
+detail, so numbers are stated once, in this file. All numbers below are from
+a `WOLF_RUN_PROFILE=final` rerun of the three scripts against the private
 camera-trap data, and match the files committed under `results/`.
 
 ## Common Modelling Target
 
-The response is an independent wolf event count. The exposure is camera effort
-in camera-days. INLA receives effort through `E`, so the linear predictor
-describes the expected daily encounter rate and map outputs are converted to
-expected events per 100 camera-days.
+The response is an independent wolf event count per camera-month row. The
+exposure is camera effort in camera-days, passed to INLA through the `E`
+argument, so the linear predictor describes the expected daily encounter
+rate and map outputs are converted to expected events per 100 camera-days.
 
 The models estimate relative encounter frequency, not abundance, density,
-occupancy, or population size.
+occupancy, or population size. Camera-trap encounter rates are a standard
+relative-abundance index in ecology when detection probability cannot be
+estimated directly (Rowcliffe et al. 2008; O'Brien 2011).
 
-For camera-month row `i`, the common model structure is:
+For camera-month row `i`, the shared model structure is:
 
 ```text
 log(mu_i) = log(E_i) + beta_0 + gamma[m_i] + u(s_i)
@@ -23,54 +27,109 @@ log(mu_i) = log(E_i) + beta_0 + gamma[m_i] + u(s_i)
 
 where `mu_i` is the expected event count, `E_i` is active camera-days,
 `beta_0` is the model intercept on the log encounter-rate scale, `gamma[m_i]`
-is the fixed effect for calendar month, and `u(s_i)` is the INLA-SPDE spatial
-random field at the camera location.
+is the fixed effect for calendar month, and `u(s_i)` is a spatial random
+field estimated with the INLA-SPDE method: the field is represented on a
+triangulated mesh over the study area and given a Matérn covariance via a
+stochastic partial differential equation, fitted by integrated nested
+Laplace approximation rather than MCMC (Rue, Martino & Chopin 2009; Lindgren,
+Rue & Lindström 2011). Two of the three models use a negative-binomial
+likelihood for `y_i` to absorb overdispersion beyond what a Poisson count
+model allows (Hilbe 2011); the road-camera 2024 model additionally uses a
+zero-inflated negative-binomial likelihood (see that survey's section).
 
-## Data Units
+## Data Units: Camera-Month Rows
 
-All final models use camera-month rows:
+All final models are fit on camera-month rows, not raw per-day or
+per-deployment records:
 
-1. A camera deployment is split when it crosses a calendar-month boundary.
-2. The effort assigned to a row is the number of active camera-days inside that
-   camera-month interval.
-3. Wolf events are assigned by `eventStart` month.
-4. The model includes calendar-month fixed effects as a temporal control and a
-   spatial SPDE field.
+1. A camera deployment is split at every calendar-month boundary it crosses.
+2. Each resulting row's exposure is the number of active camera-days inside
+   that specific camera-month interval.
+3. Wolf events are assigned to the row whose month contains the event's
+   `eventStart` timestamp.
 
-This avoids mixing September and October effort/events in deployments that
-cross month boundaries.
+For example, a camera deployed 2023-07-20 to 2023-08-15 produces two rows:
+one for July (12 active days, 2023-07-20 to 2023-07-31) and one for August
+(15 active days, 2023-08-01 to 2023-08-15). Any wolf event recorded in that
+window is assigned to whichever row's month contains it. This keeps effort
+and events aligned and avoids mixing two different months' exposure into one
+row.
 
-Month enters the model as a fixed effect, but the final mapped quantity is not
-a single-month prediction. The maps report an effort-weighted annualized
-survey-year surface:
+The calendar month itself enters the model as a fixed effect (`gamma[m_i]`
+above), estimated jointly with the spatial field, not fit separately.
+
+## Annualized Map Surface
+
+Month is a fixed effect in the model, but the published maps are not a
+single-month prediction. Each survey's sampled months are combined into one
+effort-weighted, annualized surface:
 
 ```text
 lambda_year(s) = sum_m w_m * 100 * exp(beta_0 + gamma[m] + u(s))
 ```
 
-where `w_m` is the proportion of sampled camera-days in month `m`. This keeps
-month in the model as a temporal control while reporting the spatial pattern
-for the sampled survey-year period as a whole.
+`w_m` is the share of that survey's total camera-days that fell in month
+`m`. Equivalently, the reference-month prediction is scaled by an
+annualization factor: the effort-weighted average of `exp(gamma[m] -
+gamma[m_ref])` over all sampled months. Concretely, for road-camera 2023
+(reference month 2023-08):
 
-Month is treated as a fixed effect in the final models.
+| Month | Share of camera-days | Rate ratio vs. 2023-08 |
+| --- | ---: | ---: |
+| 2023-07 | 0.296 | 0.969 |
+| 2023-08 (reference) | 0.341 | 1.000 |
+| 2023-09 | 0.334 | 1.371 |
+| 2023-10 | 0.030 | 1.078 |
+
+The effort-weighted average of the rate-ratio column is 1.117 — the
+annualization factor reported for that survey below. It means the
+sampled-year average rate runs about 11.7% above the August-only rate,
+mostly because September (33% of camera-days) has a higher fitted rate. Each
+survey's full weight table is in
+`results/<survey>/wolf_<survey>_annualization_weights.csv`.
+
+The mapped central estimate is the posterior mean of this annualized
+quantity; the accompanying posterior-SD map is its matching uncertainty
+surface, on the same units.
 
 ## Diagnostic Gate
 
-"Required posterior-predictive/spatial diagnostics pass" below refers to a
-specific gate: the camera-level posterior predictive checks (total events,
-zero fraction, max count) and the residual Moran's I spatial-autocorrelation
-test (a two-sided permutation test, scaled by `WOLF_RUN_PROFILE`, in all three
-scripts). A model is only called final if it clears this gate.
+A model is called final only if it clears a specific gate: the camera-level
+posterior predictive checks (total events, zero fraction, max count; Gelman,
+Meng & Stern 1996) and the residual Moran's I spatial-autocorrelation test
+(a two-sided permutation test, scaled by `WOLF_RUN_PROFILE`, in all three
+scripts; Moran 1950, applied to model residuals following Dormann et al.
+2007).
 
-PIT (probability integral transform) KS p-values are also computed and
-reported for every model, but they are supporting diagnostics, not part of
-the gate. PIT KS is sensitive to camera-level clustering and small-count
-discreteness in ways that do not track whether the mapped spatial surface
-itself is distorted, so a low PIT KS p-value is reported but is not on its
-own treated as disqualifying. This is why, for example, the road-camera 2023
-model reports "required diagnostics pass: TRUE" alongside a camera PIT KS
-p-value near 0.001: the low PIT KS value is retained and shown, not silently
-dropped, but it does not gate the pass/fail call.
+PIT (probability integral transform) KS p-values (Czado, Gneiting & Held
+2009, for discrete/count outcomes) are also computed and reported for every
+model as a supporting calibration diagnostic, but are not part of the gate.
+Camera-level PIT is sensitive to small-count discreteness and camera-level
+clustering in ways that do not track whether the mapped spatial surface
+itself is distorted, so a low PIT KS p-value is reported but does not on its
+own fail a model. For example, the road-camera 2023 model reports "required
+diagnostics pass: TRUE" alongside a camera PIT KS p-value near 0.0015: the
+low value is shown, not dropped, but does not gate the pass/fail call.
+
+Model comparison across candidate likelihoods (Poisson / NB / ZINB) uses
+WAIC (Watanabe 2010), cross-checked against DIC (Spiegelhalter et al. 2002).
+Out-of-sample predictive performance is checked with spatial block
+cross-validation: cameras are grouped into spatial folds by k-means
+clustering, each fold is held out in turn, and the SPDE mesh for that fold
+is rebuilt from the training cameras only, so no held-out location leaks
+into the training mesh (following the general spatially-blocked
+cross-validation approach of Roberts et al. 2017). Held-out counts are
+simulated from full joint posterior draws of the fitted model.
+
+**Sensitivity checks.** All three scripts refit the final model under
+perturbed priors and perturbed SPDE mesh resolution (finer/coarser) and
+report whether WAIC, DIC, and posterior hyperparameters stay stable. The
+forest-camera script additionally recomputes the full PPC/Moran's I gate for
+every sensitivity variant, independently re-verifying "passes required
+diagnostics" at each one; the two road-camera scripts check WAIC/DIC/
+hyperparameter stability only and do not recompute the gate per variant.
+This is a difference in how much each script's sensitivity loop checks, not
+a difference in the final fitted models themselves.
 
 ## Road-Camera 2023 Model
 
@@ -100,11 +159,8 @@ Key settings:
 - 586 independent wolf events;
 - 5222.2 camera-days;
 - observed mean encounter frequency: 11.221 events per 100 camera-days;
-- effort component: active camera-days are included as exposure;
-- map target: effort-weighted annualized 2023 surface;
-- annualization factor used in map aggregation: 1.117;
-- INLA-SPDE spatial random field;
-- negative-binomial likelihood.
+- map target: effort-weighted annualized 2023 surface (annualization factor
+  1.117, see above).
 
 Weakly informative priors:
 
@@ -112,8 +168,8 @@ Weakly informative priors:
   crude observed daily rate;
 - month log-rate ratios: Gaussian(0, SD 1);
 - negative-binomial log(size): Gaussian(log(2), SD 2);
-- spatial range: PC prior, `P(range < 5000 m) = 0.5`;
-- spatial marginal SD: PC prior, `P(SD > 2.0) = 0.05`.
+- spatial range: PC prior, `P(range < 5000 m) = 0.5` (Fuglstad et al. 2019);
+- spatial marginal SD: PC prior, `P(SD > 2.0) = 0.05` (Simpson et al. 2017).
 
 Model comparison:
 
@@ -129,36 +185,30 @@ retained for parsimony.
 
 Main diagnostics:
 
-- posterior predictive camera total events: pass;
-- posterior predictive camera zero fraction: pass;
-- posterior predictive camera maximum count: pass;
-- row Pearson dispersion: 0.665;
-- camera Pearson dispersion: 0.292;
+- posterior predictive camera total events / zero fraction / maximum count:
+  all pass;
+- row Pearson dispersion: 0.665; camera Pearson dispersion: 0.292;
 - residual Moran's I: -0.004 (expected -0.017), two-sided p = 0.492;
-- row PIT KS p-value: 0.1019;
-- camera PIT KS p-value: 0.001507;
+- row PIT KS p-value: 0.1019; camera PIT KS p-value: 0.001507
+  (supporting diagnostic, not part of the gate — see above);
 - negative-binomial size posterior mean: 1.708;
+- required diagnostics pass: TRUE;
 - temporal residual autocorrelation: within-camera lag-1 r = 0.017,
   p = 0.7281 (n = 430 pairs); no evidence of residual temporal
-  autocorrelation;
-- date-ordered mean-residual lag-1 ACF: -0.176;
-- required posterior-predictive/spatial diagnostics pass: TRUE;
+  autocorrelation; date-ordered mean-residual lag-1 ACF: -0.176;
 - spatial block cross-validation: row 90 percent coverage = 0.96, camera 90
   percent coverage = 0.95;
-- prior sensitivity: WAIC, DIC, and posterior hyperparameter estimates (NB
-  size, spatial range, spatial SD) are stable across 6 prior variants
-  (WAIC 1162.80 to 1163.56; delta WAIC 0.00 to 0.76). This checks
-  fit/hyperparameter stability, not a full rerun of the required PPC/Moran's
-  I diagnostic gate: unlike the forest-camera model, this script's
-  prior/mesh sensitivity loop does not recompute `diagnostics_ok` per
-  variant;
-- mesh sensitivity: WAIC and hyperparameter estimates are stable across the
-  final, finer, and coarser mesh variants (WAIC 1162.81 to 1163.05; delta
-  WAIC 0.00 to 0.24), on the same basis as above.
+- prior sensitivity: WAIC, DIC, and posterior hyperparameters (NB size,
+  spatial range, spatial SD) are stable across 6 prior variants (WAIC 1162.80
+  to 1163.56; delta WAIC 0.00 to 0.76; stability checked, gate not
+  recomputed per variant — see "Sensitivity checks" above);
+- mesh sensitivity: WAIC and hyperparameters are stable across the final,
+  finer, and coarser mesh variants (WAIC 1162.81 to 1163.05; delta WAIC 0.00
+  to 0.24; same basis as above).
 
 Exploratory check: a Spearman correlation of deployment start day-of-year
 against UTM northing (`results/road_2023/wolf_2023_exploratory_timing_vs_northing.csv`)
-gives rho = 0.042, p = 0.357 (n = 490) -- deployment timing is not
+gives rho = 0.042, p = 0.357 (n = 490) — deployment timing is not
 meaningfully correlated with camera location in this survey.
 
 ## Forest-Camera 2024 Model
@@ -189,10 +239,7 @@ Key settings:
 - 46 independent wolf events;
 - 4423.0 camera-days;
 - observed mean encounter frequency: 1.040 events per 100 camera-days;
-- effort component: active camera-days are included as exposure;
-- map target: effort-weighted annualized 2024 surface;
-- INLA-SPDE spatial random field;
-- negative-binomial likelihood.
+- map target: effort-weighted annualized 2024 surface.
 
 Weakly informative priors:
 
@@ -220,39 +267,37 @@ Month effects (rate ratio vs. reference month 2024-08):
 
 Main diagnostics:
 
-- posterior predictive row and camera total events: pass;
-- posterior predictive row and camera zero fraction: pass;
-- posterior predictive row and camera maximum count: pass;
-- row Pearson dispersion: 0.584;
-- camera Pearson dispersion: 0.614;
+- posterior predictive row and camera total events / zero fraction /
+  maximum count: all pass;
+- row Pearson dispersion: 0.584; camera Pearson dispersion: 0.614;
 - residual Moran's I: -0.035, two-sided p = 0.691;
-- row PIT KS p-value: 0.7938;
-- camera PIT KS p-value: 0.5125;
-- required posterior-predictive/spatial diagnostics pass: TRUE;
+- row PIT KS p-value: 0.7938; camera PIT KS p-value: 0.5125;
+- required diagnostics pass: TRUE;
 - temporal residual autocorrelation: within-camera lag-1 r = -0.046,
-  p = 0.4211 (n = 303 pairs); no evidence of residual autocorrelation. The
-  month-level lag-1 ACF is 0.144 and is retained as a low-power supporting
-  check because only seven monthly time points are available;
-- spatial block cross-validation: row 90 percent coverage = 0.978, camera
-  90 percent coverage = 0.925. This survey's cross-validation builds its
-  SPDE mesh from train-fold camera locations only, and simulates held-out
-  counts from full joint posterior samples, matching the road-camera
-  2023/2024 scripts' CV methodology exactly (both were previously
-  lower-fidelity in this script and have been fixed and verified against
-  this rerun);
+  p = 0.4211 (n = 303 pairs); no evidence of residual autocorrelation. This
+  survey additionally has enough sampled months (seven, 2024-03 to 2024-09)
+  to compute a month-level lag-1 ACF as a second, low-power supporting
+  check: 0.144. The road-camera surveys sample only 3-4 months, too few for
+  that check to carry any power, so it is not reported for them;
+- spatial block cross-validation: row 90 percent coverage = 0.978, camera 90
+  percent coverage = 0.925. This survey's cross-validation builds each
+  fold's SPDE mesh from the training-fold cameras only, and simulates
+  held-out counts from full joint posterior samples;
 - prior sensitivity: all 12 variants pass required diagnostics (WAIC 269.49
   to 276.75; best variant `month_sd_0_5`, WAIC 269.49; final-current variant
-  WAIC 270.21). Unlike the road-camera scripts, this survey's sensitivity
-  loop recomputes the full PPC/Moran's I diagnostic gate independently for
-  each variant;
+  WAIC 270.21). This survey's sensitivity loop recomputes the full PPC/
+  Moran's I diagnostic gate independently for each variant (see "Sensitivity
+  checks" above);
 - mesh sensitivity: final, finer, and coarser mesh variants all pass
   required diagnostics; WAIC range = 269.49 to 270.42.
 
-Main limitation:
-
-The forest-camera dataset contains only 46 independent wolf events. The final
-model is valid for relative encounter-frequency mapping, but month and spatial
-effects should be interpreted with wide uncertainty.
+Main limitation: the forest-camera dataset contains only 46 independent wolf
+events. Weakly informative priors do not add information the data lack, so
+with this few events the posterior for month and spatial effects stays wide
+— the wide credible intervals above reflect data sparsity, not the priors
+being informative. The model remains valid for relative encounter-frequency
+mapping, but month and spatial effects should be read with that wide
+uncertainty in mind.
 
 ## Road-Camera 2024 Model
 
@@ -275,10 +320,11 @@ y_i ~ ZeroInflatedNegativeBinomial1(mu_i, size, pi)
 log(mu_i) = log(effort_i) + intercept + month_i + spatial(s_i)
 ```
 
-`ZeroInflatedNegativeBinomial1` is INLA's type-1 zero-inflated negative-binomial
-parameterization. The parameter `pi` represents additional structural-zero
-probability, while the negative-binomial component models overdispersed event
-counts through `mu_i` and `size`.
+`ZeroInflatedNegativeBinomial1` is INLA's type-1 zero-inflated
+negative-binomial parameterization (see Martin et al. 2005 for the ecological
+rationale for modelling structural zeros separately from count-process
+zeros). `pi` is the additional structural-zero probability, while `mu_i` and
+`size` describe the negative-binomial count component.
 
 Key settings:
 
@@ -287,11 +333,8 @@ Key settings:
 - 479 independent wolf events;
 - 3574.0 camera-days;
 - observed mean encounter frequency: 13.402 events per 100 camera-days;
-- effort component: active camera-days are included as exposure;
-- map target: effort-weighted annualized 2024 surface;
-- annualization factor used in map aggregation: 1.195;
-- INLA-SPDE spatial random field;
-- zero-inflated negative-binomial type 1 likelihood.
+- map target: effort-weighted annualized 2024 surface (annualization factor
+  1.195).
 
 Weakly informative priors:
 
@@ -314,60 +357,100 @@ Model comparison:
 
 Main diagnostics:
 
-- posterior predictive camera total events: pass;
-- posterior predictive camera zero fraction: pass;
-- posterior predictive camera maximum count: pass;
-- row Pearson dispersion: 0.589;
-- camera Pearson dispersion: 0.232;
+- posterior predictive camera total events / zero fraction / maximum count:
+  all pass;
+- row Pearson dispersion: 0.589; camera Pearson dispersion: 0.232;
 - residual Moran's I: -0.034 (expected -0.017), two-sided p = 0.384;
-- row PIT KS p-value: 0.08442;
-- camera PIT KS p-value: 0.0008276;
+- row PIT KS p-value: 0.08442; camera PIT KS p-value: 0.0008276;
 - zero-inflation probability posterior mean: 0.075;
 - negative-binomial size posterior mean: 3.622;
-- required posterior-predictive/spatial diagnostics pass: TRUE;
+- required diagnostics pass: TRUE;
 - temporal residual autocorrelation: within-camera lag-1 r = -0.179,
-  p = 0.002523 (n = 284 pairs); residual deployment-order temporal structure
-  remains detectable;
-- date-ordered mean-residual lag-1 ACF: 0.252;
-- mechanism check: the residual lag-1 autocorrelation was originally
-  hypothesized to reflect staggered deployment timing correlated with camera
-  location. That hypothesis was tested directly: a Spearman correlation of
-  deployment start day-of-year against UTM northing
-  (`results/road_2024/wolf_2024_exploratory_timing_vs_northing.csv`) gives
-  rho = 0.058, p = 0.280 (n = 344) -- not a meaningful correlation, so this
-  does not explain the residual autocorrelation. The actual mechanism is not
-  identified. This is judged not to distort the mapped spatial surface
-  because the spatial field `u(s)` is fit jointly with, and net of, the
-  month effect, and spatial block cross-validation coverage (camera 90
-  percent coverage = 0.93) and mesh sensitivity both remain stable; the
-  residual structure is retained as an open temporal caution rather than
-  corrected further, since its cause is not established;
+  p = 0.002523 (n = 284 pairs); date-ordered mean-residual lag-1 ACF: 0.252.
+  Residual deployment-order temporal structure remains detectable here,
+  unlike the other two surveys. The originally hypothesized mechanism
+  (staggered deployment timing correlated with camera location) was tested
+  directly: a Spearman correlation of deployment start day-of-year against
+  UTM northing (`results/road_2024/wolf_2024_exploratory_timing_vs_northing.csv`)
+  gives rho = 0.058, p = 0.280 (n = 344) — not a meaningful correlation, so
+  it does not explain the residual autocorrelation, and no specific
+  mechanism is established. This is treated as an open temporal caution
+  rather than corrected, on the grounds that it does not appear to distort
+  the mapped spatial surface: the spatial field is fit jointly with, and net
+  of, the month effect, and both spatial block cross-validation coverage and
+  mesh sensitivity remain stable (below);
 - spatial block cross-validation: row 90 percent coverage = 0.96, camera 90
   percent coverage = 0.93;
-- prior sensitivity: WAIC, DIC, and posterior hyperparameter estimates are
-  stable across the retained prior variants (WAIC 933.40 to 933.89; delta
-  WAIC 0.00 to 0.50). This checks fit/hyperparameter stability, not a full
-  rerun of the required PPC/Moran's I diagnostic gate: unlike the
-  forest-camera model, this script's prior/mesh sensitivity loop does not
-  recompute `diagnostics_ok` per variant;
-- mesh sensitivity: WAIC and hyperparameter estimates are stable across the
-  final, finer, and coarser mesh variants (WAIC 933.32 to 933.64; delta WAIC
-  0.00 to 0.32), on the same basis as above.
+- prior sensitivity: WAIC, DIC, and posterior hyperparameters are stable
+  across the retained prior variants (WAIC 933.40 to 933.89; delta WAIC 0.00
+  to 0.50; stability checked, gate not recomputed per variant — see
+  "Sensitivity checks" above);
+- mesh sensitivity: WAIC and hyperparameters are stable across the final,
+  finer, and coarser mesh variants (WAIC 933.32 to 933.64; delta WAIC 0.00
+  to 0.32; same basis as above).
 
 ## Final Interpretation
 
-All three models are final for relative encounter-frequency mapping. The
-road-camera 2023 model passes the required diagnostics after the camera-month
-temporal correction, shows no evidence of residual temporal autocorrelation,
-and is retained as a parsimonious NB model. The forest-camera 2024 model
-passes the required diagnostics, and its prior/mesh sensitivity variants
-independently re-verify that same diagnostic gate. The road-camera 2024 model
-passes the required posterior-predictive and spatial diagnostics; its prior
-and mesh sensitivity checks show stable WAIC and hyperparameters across
-variants but (like road-camera 2023) do not re-verify the full diagnostic
-gate per variant, and its spatial block cross-validation coverage is
-acceptable. Its significant within-camera lag-1 residual correlation is
-retained as an open temporal caution: the originally hypothesized
-deployment-timing-versus-location mechanism was checked directly against the
-final data and is not supported (Spearman rho = 0.058, p = 0.280), so no
-specific mechanism is claimed.
+All three models are final for relative encounter-frequency mapping and pass
+the required diagnostic gate (camera-level PPC plus residual Moran's I).
+
+The road-camera 2023 model shows no evidence of residual temporal
+autocorrelation and is retained as a parsimonious NB model over the
+marginally-better-fitting ZINB alternative. The forest-camera 2024 model's
+prior and mesh sensitivity variants independently re-verify the same
+diagnostic gate at every variant, the most thorough check of the three; its
+main limitation is the small number of independent events (46), which widens
+posterior uncertainty on month and spatial effects without indicating a
+model problem. The road-camera 2024 model passes the required
+posterior-predictive and spatial diagnostics and is supported over NB/Poisson
+by WAIC; its one open issue is a residual within-camera temporal correlation
+whose mechanism is not established, but which spatial block cross-validation
+and mesh sensitivity both indicate does not distort the mapped spatial
+surface.
+
+## References
+
+- Czado, C., Gneiting, T. & Held, L. (2009). Predictive model assessment for
+  count data. *Biometrics*, 65(4), 1254–1261.
+- Dormann, C. F. et al. (2007). Methods to account for spatial
+  autocorrelation in the analysis of species distributional data: a review.
+  *Ecography*, 30(5), 609–628.
+- Fuglstad, G.-A., Simpson, D., Lindgren, F. & Rue, H. (2019). Constructing
+  priors that penalize the complexity of Gaussian random fields. *Journal of
+  the American Statistical Association*, 114(525), 445–452.
+- Gelman, A., Meng, X.-L. & Stern, H. (1996). Posterior predictive assessment
+  of model fitness via realized discrepancies. *Statistica Sinica*, 6(4),
+  733–760.
+- Hilbe, J. M. (2011). *Negative Binomial Regression* (2nd ed.). Cambridge
+  University Press.
+- Lindgren, F., Rue, H. & Lindström, J. (2011). An explicit link between
+  Gaussian fields and Gaussian Markov random fields: the stochastic partial
+  differential equation approach. *Journal of the Royal Statistical Society:
+  Series B*, 73(4), 423–498.
+- Martin, T. G. et al. (2005). Zero tolerance ecology: improving ecological
+  inference by modelling the source of zero observations. *Ecology Letters*,
+  8(11), 1235–1246.
+- Moran, P. A. P. (1950). Notes on continuous stochastic phenomena.
+  *Biometrika*, 37(1/2), 17–23.
+- O'Brien, T. G. (2011). Abundance, density and relative abundance: a
+  conceptual framework. In *Camera Traps in Animal Ecology* (pp. 71–96).
+  Springer.
+- Roberts, D. R. et al. (2017). Cross-validation strategies for data with
+  temporal, spatial, hierarchical, or phylogenetic structure. *Ecography*,
+  40(8), 913–929.
+- Rowcliffe, J. M., Field, J., Turvey, S. T. & Carbone, C. (2008). Estimating
+  animal density using camera traps without the need for individual
+  recognition. *Journal of Applied Ecology*, 45(4), 1228–1236.
+- Rue, H., Martino, S. & Chopin, N. (2009). Approximate Bayesian inference
+  for latent Gaussian models by using integrated nested Laplace
+  approximations. *Journal of the Royal Statistical Society: Series B*,
+  71(2), 319–392.
+- Simpson, D., Rue, H., Riebler, A., Sørbye, S. H. & Fuglstad, G.-A. (2017).
+  Penalising model component complexity: a principled, practical approach to
+  constructing priors. *Statistical Science*, 32(1), 1–28.
+- Spiegelhalter, D. J., Best, N. G., Carlin, B. P. & van der Linde, A.
+  (2002). Bayesian measures of model complexity and fit. *Journal of the
+  Royal Statistical Society: Series B*, 64(4), 583–639.
+- Watanabe, S. (2010). Asymptotic equivalence of Bayes cross validation and
+  widely applicable information criterion in singular learning theory.
+  *Journal of Machine Learning Research*, 11, 3571–3594.
